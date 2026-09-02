@@ -28,6 +28,10 @@ class CancelPsjbAction
                 throw ValidationException::withMessages(['status' => 'PSJB tidak aktif.']);
             }
 
+            if ($psjb->documentSubmissions()->exists()) {
+                throw ValidationException::withMessages(['status' => 'PSJB memiliki submission pemberkasan dan tidak dapat dibatalkan.']);
+            }
+
             if ($case->current_stage->isBeyond(SalesCaseStage::Pemberkasan)) {
                 throw ValidationException::withMessages(['status' => 'Tidak dapat membatalkan PSJB setelah tahap lanjutan tercatat.']);
             }

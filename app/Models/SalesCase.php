@@ -106,6 +106,24 @@ class SalesCase extends Model
         return $this->hasOne(Psjb::class)->where('status', 'ACTIVE');
     }
 
+    /** @return HasMany<DocumentSubmission, $this> */
+    public function documentSubmissions(): HasMany
+    {
+        return $this->hasMany(DocumentSubmission::class);
+    }
+
+    /** @return HasMany<BankProcess, $this> */
+    public function bankProcesses(): HasMany
+    {
+        return $this->hasMany(BankProcess::class);
+    }
+
+    /** @return HasOne<BankProcess, $this> */
+    public function currentApprovedBankProcess(): HasOne
+    {
+        return $this->hasOne(BankProcess::class)->where('is_authoritative', true);
+    }
+
     /**
      * Move the operational stage forward only. Centralized so no caller can
      * accidentally regress a case that has legitimately progressed.

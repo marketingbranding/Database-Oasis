@@ -1,6 +1,6 @@
 # Database Oasis
 
-Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data (branches, projects, units, banks, users) with branch isolation. Phase 2 adds the transactional foundation: consumers and sales cases with domain actions (create, mundur, reject, cancel, pindah kavling) and structural one-ACTIVE-case-per-unit/consumer guards. Phase 3 adds BI checking and PSJB records attached to sales cases, with domain actions (record BI check, create/reissue/cancel PSJB), centralized stage transitions, and a structural one-ACTIVE-PSJB-per-case guard.
+Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data with branch isolation. Phase 2 adds consumers and sales cases. Phase 3 adds BI checking and PSJB. Phase 4 adds document submissions, append-only bank responses, authoritative SP3K approval, and an explicit CASH path without fake bank/SP3K records.
 
 ## Requirements
 
@@ -97,6 +97,6 @@ Default environment writes JSON-formatted Laravel logs to stderr. Configure `LOG
 
 ## Phase boundary
 
-Phase 3 contains the first transactional stages: `bi_checks` (append-only history, `BiCheck::latestForCase` as the central current-result query) and `psjbs` (ACTIVE/SUPERSEDED/CANCELLED lifecycle, partial unique index enforcing one ACTIVE PSJB per case). Stage transitions are centralized: `SalesCaseStage::order()/isBeyond()` plus `SalesCase::advanceStageTo()`; BI CLEAR → PSJB, ACTIVE PSJB → PEMBERKASAN, no accidental regression beyond the PSJB stage, deliberate regression only via PSJB cancellation with a downstream guard.
+Phase 4 contains `document_submissions` and `bank_processes`. Submission sequence is transactionally assigned per Sales Case and structurally unique. Bank responses are append-only; one partial unique index protects the single authoritative approval per Sales Case. APPROVED requires SP3K data and advances to PPJB_DEV. REJECTED preserves case/unit/history. CASH advances explicitly to PPJB_DEV after an ACTIVE PSJB and creates no submission, bank process, bank, or SP3K placeholder. PSJB cancellation is blocked once its actual downstream submission exists.
 
-Phase 3 does not contain pemberkasan (document submissions), bank processes, SP3K, CASH downstream logic, PPJB developer, akad, BAST, monitoring, Google Sheets sync, or the legacy import engine.
+Phase 4 does not contain developer PPJB records, akad, BAST, monitoring, Google Sheets sync, or the legacy import engine.

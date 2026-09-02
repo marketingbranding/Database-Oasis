@@ -7,6 +7,7 @@ use Database\Factories\PsjbFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['sales_case_id', 'psjb_date', 'document_number', 'coordinator_id', 'status', 'notes', 'created_by'])]
@@ -39,5 +40,11 @@ class Psjb extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return HasMany<DocumentSubmission, $this> */
+    public function documentSubmissions(): HasMany
+    {
+        return $this->hasMany(DocumentSubmission::class);
     }
 }

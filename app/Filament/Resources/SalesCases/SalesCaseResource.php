@@ -6,7 +6,9 @@ use App\Filament\Resources\SalesCases\Pages\CreateSalesCase;
 use App\Filament\Resources\SalesCases\Pages\EditSalesCase;
 use App\Filament\Resources\SalesCases\Pages\ListSalesCases;
 use App\Filament\Resources\SalesCases\Pages\ViewSalesCase;
+use App\Filament\Resources\SalesCases\RelationManagers\BankProcessesRelationManager;
 use App\Filament\Resources\SalesCases\RelationManagers\BiChecksRelationManager;
+use App\Filament\Resources\SalesCases\RelationManagers\DocumentSubmissionsRelationManager;
 use App\Filament\Resources\SalesCases\RelationManagers\PsjbsRelationManager;
 use App\Filament\Resources\SalesCases\Schemas\SalesCaseForm;
 use App\Filament\Resources\SalesCases\Schemas\SalesCaseInfolist;
@@ -68,6 +70,8 @@ class SalesCaseResource extends Resource
         return [
             BiChecksRelationManager::class,
             PsjbsRelationManager::class,
+            DocumentSubmissionsRelationManager::class,
+            BankProcessesRelationManager::class,
         ];
     }
 
