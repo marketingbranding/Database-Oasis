@@ -30,4 +30,24 @@ enum SalesCaseStage: string implements HasLabel
             self::Completed => 'Completed',
         };
     }
+
+    public function order(): int
+    {
+        return match ($this) {
+            self::DataKonsumen => 1,
+            self::BiChecking => 2,
+            self::Psjb => 3,
+            self::Pemberkasan => 4,
+            self::ProsesBank => 5,
+            self::PpjbDev => 6,
+            self::Akad => 7,
+            self::Bast => 8,
+            self::Completed => 9,
+        };
+    }
+
+    public function isBeyond(self $other): bool
+    {
+        return $this->order() > $other->order();
+    }
 }

@@ -6,6 +6,8 @@ use App\Filament\Resources\SalesCases\Pages\CreateSalesCase;
 use App\Filament\Resources\SalesCases\Pages\EditSalesCase;
 use App\Filament\Resources\SalesCases\Pages\ListSalesCases;
 use App\Filament\Resources\SalesCases\Pages\ViewSalesCase;
+use App\Filament\Resources\SalesCases\RelationManagers\BiChecksRelationManager;
+use App\Filament\Resources\SalesCases\RelationManagers\PsjbsRelationManager;
 use App\Filament\Resources\SalesCases\Schemas\SalesCaseForm;
 use App\Filament\Resources\SalesCases\Schemas\SalesCaseInfolist;
 use App\Filament\Resources\SalesCases\Tables\SalesCasesTable;
@@ -59,6 +61,14 @@ class SalesCaseResource extends Resource
         }
 
         return $query;
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            BiChecksRelationManager::class,
+            PsjbsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

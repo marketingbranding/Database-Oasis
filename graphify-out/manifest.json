@@ -918,9 +918,9 @@
     "semantic_hash": "7d5c359df16515c081de05fd07a15fa1"
   },
   "README.md": {
-    "mtime": 1788361830.28919,
-    "seen": 1788361868.0169122,
-    "ast_hash": "0bbb8b7a6f5639dd76ad2a924030825f",
+    "mtime": 1788363965.6134648,
+    "seen": 1788364000.4880018,
+    "ast_hash": "c8d6bcf211a3aa63c2110b79bbbe1e30",
     "semantic_hash": ""
   },
   "compose.yaml": {
@@ -1062,9 +1062,9 @@
     "semantic_hash": ""
   },
   "app/Filament/Resources/SalesCases/SalesCaseResource.php": {
-    "mtime": 1788355230.392264,
-    "seen": 1788361868.015914,
-    "ast_hash": "7bdb0ebeec7420a48d4dd794cd857aa4",
+    "mtime": 1788363199.161244,
+    "seen": 1788364000.4880018,
+    "ast_hash": "1ee921b04c4910e0e4046fba71cc61f8",
     "semantic_hash": ""
   },
   "app/Filament/Resources/SalesCases/Schemas/SalesCaseForm.php": {
@@ -1098,9 +1098,9 @@
     "semantic_hash": ""
   },
   "app/Models/SalesCase.php": {
-    "mtime": 1788355576.5619526,
-    "seen": 1788361868.015914,
-    "ast_hash": "76411838d2c52b4d9f49c45c3c5c803f",
+    "mtime": 1788362938.1705909,
+    "seen": 1788364000.4880018,
+    "ast_hash": "5ca2ef4aba1bc7a4cdca290f2e6eb966",
     "semantic_hash": ""
   },
   "app/Policies/ConsumerPolicy.php": {
@@ -1116,9 +1116,9 @@
     "semantic_hash": ""
   },
   "app/SalesCaseStage.php": {
-    "mtime": 1788354912.4952378,
-    "seen": 1788361868.015914,
-    "ast_hash": "4fa091a8278c1df8b14770d3b58a4565",
+    "mtime": 1788362850.9733462,
+    "seen": 1788364000.4880018,
+    "ast_hash": "38d94ed7bedaade454d94571a9721e3c",
     "semantic_hash": ""
   },
   "app/SalesCaseStatus.php": {
@@ -1347,6 +1347,174 @@
     "mtime": 1788355784.5174067,
     "seen": 1788361868.015914,
     "ast_hash": "5b9f76ab002977d06c80babb2c00ca7c",
+    "semantic_hash": ""
+  },
+  "app/Actions/CancelPsjbAction.php": {
+    "mtime": 1788363009.3944695,
+    "seen": 1788364000.4880018,
+    "ast_hash": "5338d46fb42debe1634d43ca44469b82",
+    "semantic_hash": ""
+  },
+  "app/Actions/CreatePsjbAction.php": {
+    "mtime": 1788362984.8581195,
+    "seen": 1788364000.4880018,
+    "ast_hash": "30879ecc2434833627c00b7b869c4318",
+    "semantic_hash": ""
+  },
+  "app/Actions/RecordBiCheckAction.php": {
+    "mtime": 1788362978.0822017,
+    "seen": 1788364000.4880018,
+    "ast_hash": "90cc2b30c40732a92104eeb6bbd55130",
+    "semantic_hash": ""
+  },
+  "app/Actions/ReissuePsjbAction.php": {
+    "mtime": 1788363005.9007723,
+    "seen": 1788364000.4880018,
+    "ast_hash": "e54760a82c4d65520afeaa5333a1b68d",
+    "semantic_hash": ""
+  },
+  "app/BiCheckResult.php": {
+    "mtime": 1788362846.0329607,
+    "seen": 1788364000.4880018,
+    "ast_hash": "d8601fa7c998e21981bddbd0be159c8c",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/BiChecks/BiCheckResource.php": {
+    "mtime": 1788363143.3793797,
+    "seen": 1788364000.4880018,
+    "ast_hash": "b5a8d1558e94f58579bb2063c919b54d",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/BiChecks/Pages/CreateBiCheck.php": {
+    "mtime": 1788363154.6941135,
+    "seen": 1788364000.4880018,
+    "ast_hash": "d153b4682067923439850d80dd2a6a0a",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/BiChecks/Pages/ListBiChecks.php": {
+    "mtime": 1788363025.1068969,
+    "seen": 1788364000.4880018,
+    "ast_hash": "34f570cec467a2ecfe4048cfd9be0641",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/BiChecks/Schemas/BiCheckForm.php": {
+    "mtime": 1788363127.708725,
+    "seen": 1788364000.4880018,
+    "ast_hash": "7ceb5d174e162ff6f47407a39be06727",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/BiChecks/Tables/BiChecksTable.php": {
+    "mtime": 1788363134.5578308,
+    "seen": 1788364000.4880018,
+    "ast_hash": "7c33d93cc85beb45d6753c42c17c8098",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/Psjbs/Pages/CreatePsjb.php": {
+    "mtime": 1788363190.7074757,
+    "seen": 1788364000.4880018,
+    "ast_hash": "31fb0955c6692f0b4b530f08b1f869aa",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/Psjbs/Pages/ListPsjbs.php": {
+    "mtime": 1788363025.8482468,
+    "seen": 1788364000.4880018,
+    "ast_hash": "577936aaf4f3543a4a54620cc464abd7",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/Psjbs/PsjbResource.php": {
+    "mtime": 1788363189.169813,
+    "seen": 1788364000.4880018,
+    "ast_hash": "4b30b0366b8b0025c571e760a460db6e",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/Psjbs/Schemas/PsjbForm.php": {
+    "mtime": 1788363165.6607418,
+    "seen": 1788364000.4880018,
+    "ast_hash": "9bf54c640ecaa5bba37cfa62f7956f5a",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/Psjbs/Tables/PsjbsTable.php": {
+    "mtime": 1788363180.3640625,
+    "seen": 1788364000.4880018,
+    "ast_hash": "d680e1e4df9536b59e7dd46bb399679d",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/SalesCases/RelationManagers/BiChecksRelationManager.php": {
+    "mtime": 1788363082.1035123,
+    "seen": 1788364000.4880018,
+    "ast_hash": "d3ee482a42ccc114195ff806963174aa",
+    "semantic_hash": ""
+  },
+  "app/Filament/Resources/SalesCases/RelationManagers/PsjbsRelationManager.php": {
+    "mtime": 1788363294.4505978,
+    "seen": 1788364000.4880018,
+    "ast_hash": "ffe1968fd4b36af56dd6a4a8af7cb915",
+    "semantic_hash": ""
+  },
+  "app/Models/BiCheck.php": {
+    "mtime": 1788363205.8581426,
+    "seen": 1788364000.4880018,
+    "ast_hash": "9c4d1b62eb5f9e9e52097d23a21e0cc8",
+    "semantic_hash": ""
+  },
+  "app/Models/Psjb.php": {
+    "mtime": 1788363205.8811438,
+    "seen": 1788364000.4880018,
+    "ast_hash": "8822c7b5d34be4d94cf792eae1e74be9",
+    "semantic_hash": ""
+  },
+  "app/Policies/BiCheckPolicy.php": {
+    "mtime": 1788362964.0961292,
+    "seen": 1788364000.4880018,
+    "ast_hash": "ae87c7efe18359fb4fbcf4fe90fe49d4",
+    "semantic_hash": ""
+  },
+  "app/Policies/PsjbPolicy.php": {
+    "mtime": 1788362966.0010567,
+    "seen": 1788364000.4880018,
+    "ast_hash": "c265830c4f1e48d276d8757a6ca1aae6",
+    "semantic_hash": ""
+  },
+  "app/PsjbStatus.php": {
+    "mtime": 1788362847.2321076,
+    "seen": 1788364000.4880018,
+    "ast_hash": "e5015178e9cb39e1bda944dd7f246329",
+    "semantic_hash": ""
+  },
+  "database/factories/BiCheckFactory.php": {
+    "mtime": 1788362954.6598518,
+    "seen": 1788364000.4880018,
+    "ast_hash": "0e6730baa3d4e762a36aa021251d3026",
+    "semantic_hash": ""
+  },
+  "database/factories/PsjbFactory.php": {
+    "mtime": 1788362956.8952944,
+    "seen": 1788364000.4880018,
+    "ast_hash": "0788052c411bae21d918c735e22467e3",
+    "semantic_hash": ""
+  },
+  "database/migrations/2026_09_02_152744_create_bi_checks_table.php": {
+    "mtime": 1788362875.7014005,
+    "seen": 1788364000.4880018,
+    "ast_hash": "372e6114ef4d0c806b9e3cbe6ed74f77",
+    "semantic_hash": ""
+  },
+  "database/migrations/2026_09_02_152745_create_psjbs_table.php": {
+    "mtime": 1788362892.829997,
+    "seen": 1788364000.4880018,
+    "ast_hash": "4cf37a2e3972d5423a009730db80b1d1",
+    "semantic_hash": ""
+  },
+  "tests/Feature/PhaseThreeBiCheckTest.php": {
+    "mtime": 1788363771.8994682,
+    "seen": 1788364000.4880018,
+    "ast_hash": "6a6fb6b4a3c24bda42f45822d31c6202",
+    "semantic_hash": ""
+  },
+  "tests/Feature/PhaseThreePsjbTest.php": {
+    "mtime": 1788363524.235329,
+    "seen": 1788364000.4880018,
+    "ast_hash": "4ac984b110038ee651a36724fb1be09c",
     "semantic_hash": ""
   }
 }

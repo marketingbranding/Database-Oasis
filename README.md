@@ -1,6 +1,6 @@
 # Database Oasis
 
-Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data (branches, projects, units, banks, users) with branch isolation. Phase 2 adds the transactional foundation: consumers and sales cases with domain actions (create, mundur, reject, cancel, pindah kavling) and structural one-ACTIVE-case-per-unit/consumer guards. Process records (BI, PSJB, bank, PPJB, akad, BAST) begin in Phase 3+.
+Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data (branches, projects, units, banks, users) with branch isolation. Phase 2 adds the transactional foundation: consumers and sales cases with domain actions (create, mundur, reject, cancel, pindah kavling) and structural one-ACTIVE-case-per-unit/consumer guards. Phase 3 adds BI checking and PSJB records attached to sales cases, with domain actions (record BI check, create/reissue/cancel PSJB), centralized stage transitions, and a structural one-ACTIVE-PSJB-per-case guard.
 
 ## Requirements
 
@@ -97,6 +97,6 @@ Default environment writes JSON-formatted Laravel logs to stderr. Configure `LOG
 
 ## Phase boundary
 
-Phase 2 contains the transactional foundation: consumers (global identity, unique NIK), sales cases (transactional source of truth), domain actions for create/mundur/reject/cancel/pindah kavling, partial unique indexes enforcing one ACTIVE case per unit and per consumer, and master data integrity guards (units with case history cannot change project; projects with transactions cannot change branch).
+Phase 3 contains the first transactional stages: `bi_checks` (append-only history, `BiCheck::latestForCase` as the central current-result query) and `psjbs` (ACTIVE/SUPERSEDED/CANCELLED lifecycle, partial unique index enforcing one ACTIVE PSJB per case). Stage transitions are centralized: `SalesCaseStage::order()/isBeyond()` plus `SalesCase::advanceStageTo()`; BI CLEAR → PSJB, ACTIVE PSJB → PEMBERKASAN, no accidental regression beyond the PSJB stage, deliberate regression only via PSJB cancellation with a downstream guard.
 
-Phase 2 does not contain BI checks, PSJB, pemberkasan, bank processes, SP3K, PPJB, akad, BAST, monitoring dashboards, Google Sheets sync, or the legacy import engine. `SalesCaseStage` values exist as preparation only; no stage-advancing UI is exposed.
+Phase 3 does not contain pemberkasan (document submissions), bank processes, SP3K, CASH downstream logic, PPJB developer, akad, BAST, monitoring, Google Sheets sync, or the legacy import engine.
