@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Consumers;
 use App\Filament\Resources\Consumers\Pages\CreateConsumer;
 use App\Filament\Resources\Consumers\Pages\EditConsumer;
 use App\Filament\Resources\Consumers\Pages\ListConsumers;
+use App\Filament\Resources\Consumers\RelationManagers\SalesCasesRelationManager;
 use App\Filament\Resources\Consumers\Schemas\ConsumerForm;
 use App\Filament\Resources\Consumers\Tables\ConsumersTable;
 use App\Models\Consumer;
@@ -31,6 +32,8 @@ class ConsumerResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Konsumen';
 
+    protected static ?int $navigationSort = 2;
+
     public static function form(Schema $schema): Schema
     {
         return ConsumerForm::configure($schema);
@@ -39,6 +42,13 @@ class ConsumerResource extends Resource
     public static function table(Table $table): Table
     {
         return ConsumersTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            SalesCasesRelationManager::class,
+        ];
     }
 
     public static function getEloquentQuery(): Builder

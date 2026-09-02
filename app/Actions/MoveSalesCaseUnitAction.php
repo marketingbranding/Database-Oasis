@@ -26,6 +26,10 @@ class MoveSalesCaseUnitAction
                 throw ValidationException::withMessages(['case_status' => 'Sales case sudah tidak aktif.']);
             }
 
+            if ($oldCase->akad()->exists()) {
+                throw ValidationException::withMessages(['case_status' => 'Sales case tidak dapat pindah kavling setelah Akad.']);
+            }
+
             // Lock both units in a deterministic order to avoid deadlocks between opposing moves.
             $units = Unit::query()
                 ->with('project')

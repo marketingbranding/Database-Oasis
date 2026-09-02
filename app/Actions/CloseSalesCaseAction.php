@@ -27,6 +27,10 @@ abstract class CloseSalesCaseAction
                 throw ValidationException::withMessages(['case_status' => 'Sales case sudah tidak aktif.']);
             }
 
+            if ($case->akad()->exists()) {
+                throw ValidationException::withMessages(['case_status' => 'Sales case tidak dapat ditutup setelah Akad.']);
+            }
+
             $case->update([
                 'case_status' => $this->status(),
                 'closed_at' => now(),

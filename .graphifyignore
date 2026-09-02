@@ -1,0 +1,11 @@
+# Graphify code-graph extraction excludes (gitignore-style; can only exclude
+# more than .gitignore, never re-include). Generated/dependency trees only —
+# application source (app/, database/, routes/, resources/, tests/, config/)
+# and project documentation stay in the graph.
+/vendor/
+/node_modules/
+/public/build/
+/graphify-out/
+/storage/
+/bootstrap/cache/
+/public/js/filament/

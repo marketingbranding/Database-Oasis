@@ -1,6 +1,6 @@
 # Database Oasis
 
-Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data with branch isolation. Phase 2 adds consumers and sales cases. Phase 3 adds BI checking and PSJB. Phase 4 adds document submissions, append-only bank responses, authoritative SP3K approval, and an explicit CASH path without fake bank/SP3K records.
+Internal sales operations application for Marison Regency. Phase 0 provides the Laravel/Filament/PostgreSQL foundation. Phase 1 adds branch-isolated master data. Phase 2 adds consumers and sales cases. Phase 3 adds BI checking and PSJB. Phase 4 adds document submissions, bank responses, SP3K, and explicit CASH advancement. Phase 5 completes both KPR and CASH chains through Developer PPJB, Akad, BAST, and Sales Case completion. Phase 6 adds the Sales Case workspace: header summary, process stepper, unified timeline, quick actions, case notes, and document-number-aware global search.
 
 ## Requirements
 
@@ -97,6 +97,10 @@ Default environment writes JSON-formatted Laravel logs to stderr. Configure `LOG
 
 ## Phase boundary
 
-Phase 4 contains `document_submissions` and `bank_processes`. Submission sequence is transactionally assigned per Sales Case and structurally unique. Bank responses are append-only; one partial unique index protects the single authoritative approval per Sales Case. APPROVED requires SP3K data and advances to PPJB_DEV. REJECTED preserves case/unit/history. CASH advances explicitly to PPJB_DEV after an ACTIVE PSJB and creates no submission, bank process, bank, or SP3K placeholder. PSJB cancellation is blocked once its actual downstream submission exists.
+Phase 5 contains `developer_ppjbs`, `akad_records`, and `bast_records`. One partial unique index protects the ACTIVE PPJB per Sales Case; unique constraints protect one Akad and one BAST per normal Sales Case. KPR PPJB resolves the authoritative approval server-side; CASH PPJB requires explicit CASH advancement and keeps `bank_process_id` null. Akad moves the Unit to TERJUAL while keeping the case ACTIVE. BAST closes the case as COMPLETED. Post-Akad close/move/PPJB correction workflows are blocked server-side. Document numbers remain warning-only business attributes and never relational keys.
 
-Phase 4 does not contain developer PPJB records, akad, BAST, monitoring, Google Sheets sync, or the legacy import engine.
+Phase 5 does not contain Monitoring/KPI, Akad readiness/kendala, legacy migration, Google Sheets sync, document generation, attachments, or advanced Sales Case workspace/timeline UI.
+
+Phase 6 is the presentation/orchestration layer on top of Phases 0-5. It adds: a Sales Case workspace with header summary, process stepper, and unified timeline; case-scoped append-only operational notes; document-number-aware global search that resolves to (possibly multiple) Sales Cases; Consumer and Unit case-history relation managers; and a centralized `SalesCase::daysInCurrentStage()` aging calculation. All quick actions still call existing Phase 2-5 domain actions; no domain rules are duplicated in UI code.
+
+Phase 6 does not contain KPI/Monitoring, Akad readiness/kendala, legacy migration, Google Sheets sync, or document generation.

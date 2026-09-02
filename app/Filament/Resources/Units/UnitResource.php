@@ -5,7 +5,10 @@ namespace App\Filament\Resources\Units;
 use App\Filament\Resources\Units\Pages\CreateUnit;
 use App\Filament\Resources\Units\Pages\EditUnit;
 use App\Filament\Resources\Units\Pages\ListUnits;
+use App\Filament\Resources\Units\Pages\ViewUnit;
+use App\Filament\Resources\Units\RelationManagers\SalesCasesRelationManager;
 use App\Filament\Resources\Units\Schemas\UnitForm;
+use App\Filament\Resources\Units\Schemas\UnitInfolist;
 use App\Filament\Resources\Units\Tables\UnitsTable;
 use App\Models\Unit;
 use App\Models\User;
@@ -31,14 +34,28 @@ class UnitResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Unit / Kavling';
 
+    protected static ?int $navigationSort = 3;
+
     public static function form(Schema $schema): Schema
     {
         return UnitForm::configure($schema);
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return UnitInfolist::configure($schema);
+    }
+
     public static function table(Table $table): Table
     {
         return UnitsTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            SalesCasesRelationManager::class,
+        ];
     }
 
     public static function getEloquentQuery(): Builder
@@ -59,6 +76,7 @@ class UnitResource extends Resource
         return [
             'index' => ListUnits::route('/'),
             'create' => CreateUnit::route('/create'),
+            'view' => ViewUnit::route('/{record}'),
             'edit' => EditUnit::route('/{record}/edit'),
         ];
     }

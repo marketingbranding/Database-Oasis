@@ -56,6 +56,19 @@ class SalesCasesTable
                     ->label('Booking')
                     ->date()
                     ->sortable(),
+                TextColumn::make('latestSubmission.bank.name')
+                    ->label('Bank')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('currentApprovedBankProcess.sp3k_number')
+                    ->label('SP3K')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('daysInCurrentStage')
+                    ->label('Hari di Stage')
+                    ->state(fn ($record): string => $record->daysInCurrentStage() === null
+                        ? '-'
+                        : $record->daysInCurrentStage().' hari'),
                 TextColumn::make('updated_at')
                     ->label('Diubah')
                     ->dateTime()
