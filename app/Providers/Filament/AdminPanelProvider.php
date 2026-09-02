@@ -29,6 +29,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('Database Oasis')
+            ->navigationGroups(['Dashboard', 'Operasional', 'Proses Penjualan', 'Monitoring', 'Master Data', 'System'])
             ->colors([
                 'primary' => Color::Amber,
             ])

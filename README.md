@@ -1,6 +1,6 @@
 # Database Oasis
 
-Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Domain CRUD begins only after Phase 0 approval.
+Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data (branches, projects, units, banks, users) with branch isolation. Transaction CRUD (consumers, sales cases) begins in Phase 2.
 
 ## Requirements
 
@@ -97,4 +97,6 @@ Default environment writes JSON-formatted Laravel logs to stderr. Configure `LOG
 
 ## Phase boundary
 
-Phase 0 contains no branches, projects, units, consumers, sales cases, transaction process records, migration engine, Sheets sync, or dashboards.
+Phase 1 contains master data only: branches, projects, units, banks, users, all six roles, and branch isolation via policies plus scoped resource queries. Branch Admin and Branch Manager are restricted to their own branch; Auditor is read-only; Management has no master data pages.
+
+Phase 1 does not contain consumers, sales cases, transaction process records, migration engine, Sheets sync, or dashboards.

@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
-        Role::findOrCreate(UserRole::SuperAdmin->value);
+        foreach (UserRole::cases() as $role) {
+            Role::findOrCreate($role->value);
+        }
     }
 }
