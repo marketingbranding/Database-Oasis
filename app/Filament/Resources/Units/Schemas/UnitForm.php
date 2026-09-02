@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Units\Schemas;
 
+use App\Models\Unit;
 use App\Models\User;
 use App\UnitStatus;
 use App\UtilityStatus;
@@ -36,6 +37,7 @@ class UnitForm
                     ->searchable()
                     ->preload()
                     ->required()
+                    ->disabled(fn ($record): bool => $record instanceof Unit && $record->salesCases()->exists())
                     ->exists(
                         'projects',
                         'id',

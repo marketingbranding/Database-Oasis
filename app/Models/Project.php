@@ -33,4 +33,10 @@ class Project extends Model
     {
         return $this->hasMany(Unit::class);
     }
+
+    /** @return HasMany<SalesCase, $this> */
+    public function salesCases(): HasMany
+    {
+        return $this->hasMany(SalesCase::class);
+    }
 }

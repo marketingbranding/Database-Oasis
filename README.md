@@ -1,6 +1,6 @@
 # Database Oasis
 
-Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data (branches, projects, units, banks, users) with branch isolation. Transaction CRUD (consumers, sales cases) begins in Phase 2.
+Internal sales operations application for Marison Regency. Phase 0 provides Laravel, Filament, PostgreSQL, authentication, RBAC foundation, Docker, CI, health checks, and structured logging. Phase 1 adds master data (branches, projects, units, banks, users) with branch isolation. Phase 2 adds the transactional foundation: consumers and sales cases with domain actions (create, mundur, reject, cancel, pindah kavling) and structural one-ACTIVE-case-per-unit/consumer guards. Process records (BI, PSJB, bank, PPJB, akad, BAST) begin in Phase 3+.
 
 ## Requirements
 
@@ -97,6 +97,6 @@ Default environment writes JSON-formatted Laravel logs to stderr. Configure `LOG
 
 ## Phase boundary
 
-Phase 1 contains master data only: branches, projects, units, banks, users, all six roles, and branch isolation via policies plus scoped resource queries. Branch Admin and Branch Manager are restricted to their own branch; Auditor is read-only; Management has no master data pages.
+Phase 2 contains the transactional foundation: consumers (global identity, unique NIK), sales cases (transactional source of truth), domain actions for create/mundur/reject/cancel/pindah kavling, partial unique indexes enforcing one ACTIVE case per unit and per consumer, and master data integrity guards (units with case history cannot change project; projects with transactions cannot change branch).
 
-Phase 1 does not contain consumers, sales cases, transaction process records, migration engine, Sheets sync, or dashboards.
+Phase 2 does not contain BI checks, PSJB, pemberkasan, bank processes, SP3K, PPJB, akad, BAST, monitoring dashboards, Google Sheets sync, or the legacy import engine. `SalesCaseStage` values exist as preparation only; no stage-advancing UI is exposed.

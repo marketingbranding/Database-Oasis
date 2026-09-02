@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Projects\Schemas;
 
+use App\Models\Project;
 use App\Models\User;
 use App\ProjectStatus;
 use Filament\Forms\Components\Select;
@@ -23,7 +24,8 @@ class ProjectForm
                     ->preload()
                     ->required()
                     ->default(fn (): ?string => User::current()?->isBranchScoped() ? User::current()->branch_id : null)
-                    ->disabled(fn (): bool => User::current()?->isBranchScoped() ?? false),
+                    ->disabled(fn ($record): bool => (User::current()?->isBranchScoped() ?? false)
+                        || ($record instanceof Project && $record->salesCases()->exists())),
                 TextInput::make('code')
                     ->label('Kode')
                     ->required()

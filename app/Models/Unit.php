@@ -8,6 +8,8 @@ use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['project_id', 'unit_code', 'block', 'number', 'status', 'building_progress', 'electricity_status', 'water_status'])]
 class Unit extends Model
@@ -29,5 +31,17 @@ class Unit extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /** @return HasMany<SalesCase, $this> */
+    public function salesCases(): HasMany
+    {
+        return $this->hasMany(SalesCase::class);
+    }
+
+    /** @return HasOne<SalesCase, $this> */
+    public function activeSalesCase(): HasOne
+    {
+        return $this->hasOne(SalesCase::class)->where('case_status', 'ACTIVE');
     }
 }
