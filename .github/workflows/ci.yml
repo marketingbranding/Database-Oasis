@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: database_oasis_test
+          POSTGRES_USER: database_oasis
+          POSTGRES_PASSWORD: database_oasis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U database_oasis -d database_oasis_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:WjaVmNdMaGdd4mK2cO/m2Mx/q6AQWMHQUd9fWqsYFYs=
+      CACHE_STORE: array
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: database_oasis_test
+      DB_USERNAME: database_oasis
+      DB_PASSWORD: database_oasis
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, pdo_pgsql
+          coverage: none
+      - uses: ramsey/composer-install@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: composer audit --locked --no-interaction
+      - run: php artisan migrate --force
+      - run: php artisan migrate:rollback --force
+      - run: php artisan migrate --force
+      - run: vendor/bin/pint --test --format agent
+      - run: composer analyse
+      - run: php artisan test --compact
