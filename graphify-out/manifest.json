@@ -222,10 +222,10 @@
     "semantic_hash": "e9c2bf922b7e6b47c2b9d080c2e93446"
   },
   "app/Providers/Filament/AdminPanelProvider.php": {
-    "mtime": 1788394070.471624,
-    "seen": 1788400313.1649578,
-    "ast_hash": "597bdb7a1b14862dec577e1ef56ee8c0",
-    "semantic_hash": "597bdb7a1b14862dec577e1ef56ee8c0"
+    "mtime": 1788416207.977165,
+    "seen": 1788429179.8042827,
+    "ast_hash": "19f97cb58ec456d39a9756b779ff0870",
+    "semantic_hash": ""
   },
   "app/UnitStatus.php": {
     "mtime": 1788394070.471624,
@@ -498,10 +498,10 @@
     "semantic_hash": "3f679e9508c834f0ad95943455fcd836"
   },
   "vite.config.js": {
-    "mtime": 1787624818.0,
-    "seen": 1788400313.1650524,
-    "ast_hash": "8ef22d264079dab94f6d36526b0cb1bc",
-    "semantic_hash": "8ef22d264079dab94f6d36526b0cb1bc"
+    "mtime": 1788416207.4573925,
+    "seen": 1788429179.8044503,
+    "ast_hash": "70cc98d5535ac1371b3f48a77631652a",
+    "semantic_hash": ""
   },
   ".agents/skills/infer-conventions/SKILL.md": {
     "mtime": 1788341899.0542648,
@@ -2061,6 +2061,72 @@
     "mtime": 1788408515.0205808,
     "seen": 1788413682.8681347,
     "ast_hash": "7f809a21bc7482036a279557c60ad2f2",
+    "semantic_hash": ""
+  },
+  "app/Console/Commands/AuditLegacyWorkbook.php": {
+    "mtime": 1788418099.4875083,
+    "seen": 1788429179.8040674,
+    "ast_hash": "c315b94459bf196efe46540b70871800",
+    "semantic_hash": ""
+  },
+  "app/LegacyMigration/AuditExceptionCode.php": {
+    "mtime": 1788417755.257361,
+    "seen": 1788429179.8042326,
+    "ast_hash": "84cfd0a1a42c26a6e74423f0d8bf40ce",
+    "semantic_hash": ""
+  },
+  "app/LegacyMigration/DuplicateClassification.php": {
+    "mtime": 1788417755.4557817,
+    "seen": 1788429179.804234,
+    "ast_hash": "73e58a49dfacfaf9e9203aeba216f21d",
+    "semantic_hash": ""
+  },
+  "app/LegacyMigration/JeparaLegacyAuditor.php": {
+    "mtime": 1788428371.7351954,
+    "seen": 1788429179.804235,
+    "ast_hash": "e191ec5e74f8fa76c385510c0e5d15db",
+    "semantic_hash": ""
+  },
+  "app/LegacyMigration/LegacyAuditReportWriter.php": {
+    "mtime": 1788418063.2196155,
+    "seen": 1788429179.804236,
+    "ast_hash": "861a73f8ac8d6a285ba5e24156d9a86e",
+    "semantic_hash": ""
+  },
+  "app/LegacyMigration/LegacyNormalizer.php": {
+    "mtime": 1788418592.8809247,
+    "seen": 1788429179.8042371,
+    "ast_hash": "c962d54dde8369d8cf9d1ad2cfc10186",
+    "semantic_hash": ""
+  },
+  "app/LegacyMigration/LegacySourceReader.php": {
+    "mtime": 1788417865.8165157,
+    "seen": 1788429179.8042378,
+    "ast_hash": "0f84553885fe965132469479ca9121dc",
+    "semantic_hash": ""
+  },
+  "app/LegacyMigration/MappingConfidence.php": {
+    "mtime": 1788417735.4358232,
+    "seen": 1788429179.8042383,
+    "ast_hash": "a58cbb7d0354709588d86161a0a49c97",
+    "semantic_hash": ""
+  },
+  "tests/Feature/PhaseEightALegacyAuditTest.php": {
+    "mtime": 1788428600.0484984,
+    "seen": 1788429179.8044229,
+    "ast_hash": "a056e3f70e72ab4f141e503e1faef6fe",
+    "semantic_hash": ""
+  },
+  "docs/LEGACY_MIGRATION_JEPARA_MAPPING.md": {
+    "mtime": 1788428812.856028,
+    "seen": 1788429179.8045402,
+    "ast_hash": "ca049c6b62496eb608aa848726eacc47",
+    "semantic_hash": ""
+  },
+  "docs/LEGACY_MIGRATION_RUNBOOK.md": {
+    "mtime": 1788428855.5209806,
+    "seen": 1788429179.8045409,
+    "ast_hash": "2cffc370d09a1d9f8c7f609950d0384b",
     "semantic_hash": ""
   }
 }
