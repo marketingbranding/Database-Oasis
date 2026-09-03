@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['sales_case_id', 'document_submission_id', 'bank_id', 'response_type', 'response_date', 'sp3k_number', 'sp3k_date', 'credit_limit', 'tenor', 'is_authoritative', 'notes', 'created_by'])]
+#[Fillable(['sales_case_id', 'document_submission_id', 'bank_id', 'response_type', 'response_date', 'sp3k_number', 'sp3k_date', 'credit_limit', 'tenor', 'is_authoritative', 'notes', 'created_by', 'is_legacy_import', 'legacy_date_missing'])]
 class BankProcess extends Model
 {
     /** @use HasFactory<BankProcessFactory> */

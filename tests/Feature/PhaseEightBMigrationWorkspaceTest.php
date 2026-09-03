@@ -11,6 +11,7 @@ use App\Services\LegacyMigrationCandidateService;
 use App\Services\LegacyMigrationDryRunService;
 use App\Services\LegacyMigrationReadinessService;
 use App\Services\LegacyMigrationReviewService;
+use App\Services\LegacyResolutionCompatibilityService;
 use App\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -90,7 +91,7 @@ class PhaseEightBMigrationWorkspaceTest extends TestCase
         $exceptions = $candidate->exceptions()->where('severity', 'BLOCKING')->get();
         foreach ($exceptions as $exception) {
             app(LegacyMigrationReviewService::class)
-                ->resolveBlockingException($candidate, $this->hq, $exception->code, 'manual', 'resolved');
+                ->resolveBlockingException($candidate, $this->hq, $exception->code, app(LegacyResolutionCompatibilityService::class)->allowedFor($exception->code)[0], 'resolved');
         }
 
         $this->assertSame(MigrationReadiness::Review->value, app(LegacyMigrationReadinessService::class)->calculate($candidate)->value);

@@ -6,6 +6,7 @@ use App\MigrationBatchStatus;
 use App\Models\LegacyMigrationBatch;
 use App\Models\LegacyMigrationCandidate;
 use App\Models\LegacyMigrationCandidateException;
+use App\Models\LegacyMigrationOrphan;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -84,8 +85,50 @@ class LegacyMigrationCandidateService
                 }
             }
 
+            foreach ($report['unresolved_records'] as $orphan) {
+                $sheet = (string) ($orphan['sheet'] ?? 'unknown');
+                $blocking = in_array($sheet, ['proses_bank', 'akad', 'bast'], true)
+                    || ($orphan['reason'] ?? null) === 'AMBIGUOUS';
+
+                LegacyMigrationOrphan::create([
+                    'batch_id' => $batch->id,
+                    'branch_id' => null,
+                    'source_sheet' => $sheet,
+                    'source_row' => $orphan['row'] ?? null,
+                    'source_fingerprint' => (string) $meta['source_fingerprint'],
+                    'audit_fingerprint' => (string) $meta['audit_fingerprint'],
+                    'orphan_code' => $this->orphanCode($sheet, (string) ($orphan['reason'] ?? 'UNRESOLVED')),
+                    'severity' => $blocking ? 'BLOCKING' : 'REVIEW',
+                    'normalized_evidence' => $orphan,
+                    'candidate_matches' => [
+                        'count' => $orphan['candidate_count'] ?? 0,
+                        'consumer_candidates' => $orphan['consumer_candidate_count'] ?? 0,
+                        'unit_candidates' => $orphan['unit_candidate_count'] ?? 0,
+                    ],
+                    'status' => 'PENDING',
+                ]);
+            }
+
             return $batch;
         });
+    }
+
+    private function orphanCode(string $sheet, string $reason): string
+    {
+        if ($reason === 'AMBIGUOUS') {
+            return 'SALES_CASE_AMBIGUOUS';
+        }
+
+        return match ($sheet) {
+            'bi_checking' => 'ORPHAN_BI',
+            'psjb' => 'ORPHAN_PSJB',
+            'pemberkasan' => 'ORPHAN_SUBMISSION',
+            'proses_bank' => 'ORPHAN_BANK_PROCESS',
+            'ppjb_dev' => 'ORPHAN_PPJB',
+            'akad' => 'ORPHAN_AKAD',
+            'bast' => 'ORPHAN_BAST',
+            default => 'ORPHAN_OTHER',
+        };
     }
 
     /** @return array{source_fingerprint: string, audit_fingerprint: string} */

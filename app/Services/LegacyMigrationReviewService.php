@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\LegacyResolutionType;
 use App\Enums\MigrationExceptionSeverity;
 use App\MigrationReadiness;
 use App\MigrationReviewDecision;
@@ -48,7 +49,7 @@ class LegacyMigrationReviewService
         LegacyMigrationCandidate $candidate,
         User $user,
         string $exceptionCode,
-        string $resolutionType,
+        LegacyResolutionType $resolutionType,
         string $note,
         ?array $selectedValue = null,
     ): LegacyMigrationResolution {
@@ -65,6 +66,10 @@ class LegacyMigrationReviewService
             throw ValidationException::withMessages(['exception_code' => "Blocker {$exceptionCode} tidak ditemukan pada kandidat ini."]);
         }
 
+        if (! app(LegacyResolutionCompatibilityService::class)->isCompatible($exceptionCode, $resolutionType)) {
+            throw ValidationException::withMessages(['resolution_type' => "Resolution {$resolutionType->value} tidak kompatibel dengan {$exceptionCode}."]);
+        }
+
         if (! $this->fingerprintMatches($candidate)) {
             throw ValidationException::withMessages(['fingerprint' => 'Source/audit fingerprint tidak cocok dengan batch saat ini.']);
         }
@@ -73,7 +78,7 @@ class LegacyMigrationReviewService
             return LegacyMigrationResolution::create([
                 'candidate_id' => $candidate->id,
                 'exception_code' => $exceptionCode,
-                'resolution_type' => $resolutionType,
+                'resolution_type' => $resolutionType->value,
                 'selected_value' => $selectedValue,
                 'note' => $note,
                 'resolved_by' => $user->id,

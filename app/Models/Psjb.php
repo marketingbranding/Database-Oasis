@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['sales_case_id', 'psjb_date', 'document_number', 'coordinator_id', 'status', 'notes', 'created_by'])]
+#[Fillable(['sales_case_id', 'psjb_date', 'document_number', 'coordinator_id', 'status', 'notes', 'created_by', 'is_legacy_import', 'legacy_date_missing'])]
 class Psjb extends Model
 {
     /** @use HasFactory<PsjbFactory> */

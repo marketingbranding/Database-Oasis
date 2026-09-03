@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['sales_case_id', 'check_date', 'result', 'description', 'created_by'])]
+#[Fillable(['sales_case_id', 'check_date', 'result', 'description', 'created_by', 'is_legacy_import', 'legacy_date_missing'])]
 class BiCheck extends Model
 {
     /** @use HasFactory<BiCheckFactory> */

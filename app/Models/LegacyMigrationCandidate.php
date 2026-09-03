@@ -51,4 +51,22 @@ class LegacyMigrationCandidate extends Model
     {
         return $this->hasMany(LegacyMigrationResolution::class, 'candidate_id');
     }
+
+    /** @return HasMany<LegacyMigrationOrphanResolution, $this> */
+    public function orphanResolutions(): HasMany
+    {
+        return $this->hasMany(LegacyMigrationOrphanResolution::class, 'target_candidate_id');
+    }
+
+    /** @return HasMany<LegacyMigrationPlanOperation, $this> */
+    public function planOperations(): HasMany
+    {
+        return $this->hasMany(LegacyMigrationPlanOperation::class, 'candidate_id');
+    }
+
+    /** @return HasMany<LegacyMigrationProvenance, $this> */
+    public function provenances(): HasMany
+    {
+        return $this->hasMany(LegacyMigrationProvenance::class, 'candidate_id');
+    }
 }

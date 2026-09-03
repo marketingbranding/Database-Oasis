@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['sales_case_id', 'psjb_id', 'bank_id', 'submission_date', 'bank_branch', 'sequence', 'status', 'type', 'notes', 'created_by'])]
+#[Fillable(['sales_case_id', 'psjb_id', 'bank_id', 'submission_date', 'bank_branch', 'sequence', 'status', 'type', 'notes', 'created_by', 'is_legacy_import', 'legacy_date_missing'])]
 class DocumentSubmission extends Model
 {
     /** @use HasFactory<DocumentSubmissionFactory> */

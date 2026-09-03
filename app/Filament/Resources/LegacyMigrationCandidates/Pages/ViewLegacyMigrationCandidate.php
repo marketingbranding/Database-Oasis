@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\LegacyMigrationCandidates\Pages;
 
+use App\Enums\LegacyResolutionType;
 use App\Filament\Resources\LegacyMigrationCandidates\LegacyMigrationCandidateResource;
 use App\MigrationReviewDecision;
 use App\Models\LegacyMigrationCandidate;
@@ -45,12 +46,12 @@ class ViewLegacyMigrationCandidate extends ViewRecord
                 ->visible(fn (): bool => $candidate->readiness->value === 'BLOCKED')
                 ->form([
                     TextInput::make('exception_code')->label('Exception Code')->required(),
-                    TextInput::make('resolution_type')->label('Resolution Type')->required(),
+                    Select::make('resolution_type')->label('Resolution Type')->options(LegacyResolutionType::class)->required(),
                     Textarea::make('note')->label('Catatan')->required(),
                 ])
                 ->action(function (array $data) use ($candidate, $reviewService): void {
                     $user = User::current() ?? abort(403);
-                    $reviewService->resolveBlockingException($candidate, $user, $data['exception_code'], $data['resolution_type'], $data['note']);
+                    $reviewService->resolveBlockingException($candidate, $user, $data['exception_code'], LegacyResolutionType::from($data['resolution_type']), $data['note']);
                     Notification::make()->title('Resolution tersimpan')->success()->send();
                 }),
         ];

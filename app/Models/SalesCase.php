@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['consumer_id', 'unit_id', 'project_id', 'branch_id', 'financing_type', 'booking_date', 'source', 'current_stage', 'case_status', 'previous_case_id', 'transfer_reason', 'sales_pic_id', 'coordinator_id', 'closed_at', 'closed_reason', 'created_by'])]
+#[Fillable(['consumer_id', 'unit_id', 'project_id', 'branch_id', 'financing_type', 'booking_date', 'source', 'current_stage', 'case_status', 'previous_case_id', 'transfer_reason', 'sales_pic_id', 'coordinator_id', 'closed_at', 'closed_reason', 'created_by', 'is_legacy_import'])]
 class SalesCase extends Model
 {
     /** @use HasFactory<SalesCaseFactory> */
