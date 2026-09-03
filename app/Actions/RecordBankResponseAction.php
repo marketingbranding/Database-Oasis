@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\BankResponseType;
 use App\DocumentSubmissionStatus;
+use App\DocumentSubmissionType;
 use App\FinancingType;
 use App\Models\BankProcess;
 use App\Models\DocumentSubmission;
@@ -49,6 +50,10 @@ class RecordBankResponseAction
 
             if ($submission === null || $submission->sales_case_id !== $case->id) {
                 throw ValidationException::withMessages(['document_submission_id' => 'Submission tidak terkait dengan sales case ini.']);
+            }
+
+            if ($submission->type === DocumentSubmissionType::CashInternal) {
+                throw ValidationException::withMessages(['document_submission_id' => 'Pemberkasan CASH tidak dapat menerima response bank.']);
             }
 
             if (($data['bank_id'] ?? null) !== $submission->bank_id) {

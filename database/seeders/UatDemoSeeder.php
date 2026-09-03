@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Actions\AdvanceCashCaseToPpjbAction;
+use App\Actions\CompleteCashPemberkasanAction;
 use App\Actions\CreateAkadAction;
 use App\Actions\CreateBastAction;
 use App\Actions\CreateDeveloperPpjbAction;
@@ -267,9 +267,8 @@ class UatDemoSeeder extends Seeder
     {
         $marison = $this->project($this->jepara, 'MRA', 'Marison Regency A');
         $case = $this->caseOn($this->unit($marison, 'A-03'), 'Dedi Pratama', 'CASH');
-        $this->bi($case);
         $this->psjb($case);
-        app(AdvanceCashCaseToPpjbAction::class)->handle($this->jeparaAdmin, $case);
+        app(CompleteCashPemberkasanAction::class)->handle($this->jeparaAdmin, $case);
         $this->akad($case, $this->ppjb($case), 'AKAD-UAT-CASH');
         $this->bast($case, $case->akad()->firstOrFail());
     }

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Actions\AdvanceCashCaseToPpjbAction;
 use App\Actions\CancelSalesCaseAction;
+use App\Actions\CompleteCashPemberkasanAction;
 use App\Actions\CreateAkadAction;
 use App\Actions\CreateBastAction;
 use App\Actions\CreateCaseNoteAction;
@@ -17,6 +17,7 @@ use App\Actions\RecordBankResponseAction;
 use App\Actions\RecordBiCheckAction;
 use App\BankResponseType;
 use App\BiCheckResult;
+use App\DocumentSubmissionType;
 use App\Filament\Resources\SalesCases\Pages\ViewSalesCase;
 use App\Filament\Resources\SalesCases\SalesCaseResource;
 use App\FinancingType;
@@ -68,10 +69,12 @@ class PhaseSixWorkspaceTest extends TestCase
             ->assertSeeText($case->consumer->nik)
             ->assertSeeText($case->unit->unit_code)
             ->assertSeeText($case->current_stage->getLabel())
-            ->assertSeeText('Hari di Stage Ini')
+            ->assertSeeText('hari di stage ini')
             ->assertSeeText('Pemberkasan #2')
-            ->assertSeeText('Response Bank BTN — Rejected')
-            ->assertSeeText('Response Bank BRI — Approved');
+            ->assertSeeText('Response Bank — BTN')
+            ->assertSeeText('Response Bank — BRI')
+            ->assertSeeText('Rejected')
+            ->assertSeeText('Approved');
     }
 
     public function test_workspace_kpr_summary_shows_bank_and_sp3k_without_fabrication(): void
@@ -90,14 +93,18 @@ class PhaseSixWorkspaceTest extends TestCase
     {
         $case = $this->cashCase();
 
-        $this->assertNull($case->latestSubmission);
+        $submission = $case->latestSubmission;
+        $this->assertNotNull($submission);
+        $this->assertSame(DocumentSubmissionType::CashInternal, $submission->type);
+        $this->assertNull($submission->bank_id);
         $this->assertNull($case->currentApprovedBankProcess);
         $this->assertDatabaseCount('bank_processes', 0);
 
         $this->actingAs($this->hq);
         Livewire::test(ViewSalesCase::class, ['record' => $case->id])
             ->assertSuccessful()
-            ->assertSeeText('CASH');
+            ->assertSeeText('CASH')
+            ->assertSeeText('Pemberkasan CASH');
     }
 
     public function test_completed_and_closed_workspaces_render_final_status_cards(): void
@@ -207,22 +214,28 @@ class PhaseSixWorkspaceTest extends TestCase
         $items = app(SalesCaseTimelineService::class)->forCase($case);
         $titles = $items->map(fn ($item): string => $item->title)->values();
 
-        $this->assertContains('Sales Case Dibuat', $titles);
-        $this->assertContains('BI Check — Review', $titles);
-        $this->assertContains('BI Check — Clear', $titles);
-        $this->assertContains('PSJB Dibuat', $titles);
+        $this->assertContains('Sales Case dibuat', $titles);
+        $this->assertContains('BI Checking', $titles);
+        $this->assertContains('PSJB dibuat', $titles);
         $this->assertContains('Pemberkasan #1 — BTN', $titles);
         $this->assertContains('Pemberkasan #2 — BRI', $titles);
-        $this->assertContains('Response Bank BTN — Rejected', $titles);
-        $this->assertContains('Response Bank BRI — Process', $titles);
-        $this->assertContains('Response Bank BRI — Approved', $titles);
+        $this->assertContains('Response Bank — BTN', $titles);
+        $this->assertContains('Response Bank — BRI', $titles);
         $this->assertSame(2, $items->where('sourceType', 'document_submission')->count());
         $this->assertSame(4, $items->where('sourceType', 'bank_process')->count());
 
-        // Business-date ordering, newest first.
+        // Business-date ordering, oldest first (newest at the bottom).
         $dates = $items->map(fn ($item): int => $item->date->getTimestamp())->values();
-        $sorted = $dates->sortDesc()->values();
+        $sorted = $dates->sort()->values();
         $this->assertSame($sorted->all(), $dates->all());
+
+        // Every bank response is labelled with its own pemberkasan attempt.
+        $responses = $items->where('sourceType', 'bank_process')->values();
+        $this->assertTrue($responses->every(fn ($item): bool => str_starts_with((string) $item->groupLabel, 'Pemberkasan #')));
+        $this->assertSame(
+            ['Pemberkasan #1 — BTN', 'Pemberkasan #1 — BTN', 'Pemberkasan #2 — BRI', 'Pemberkasan #2 — BRI'],
+            $responses->map(fn ($item): ?string => $item->groupLabel)->values()->all(),
+        );
     }
 
     public function test_timeline_same_date_tie_break_is_deterministic(): void
@@ -267,7 +280,9 @@ class PhaseSixWorkspaceTest extends TestCase
         $items = app(SalesCaseTimelineService::class)->forCase($case);
 
         $this->assertSame(0, $items->where('sourceType', 'bank_process')->count());
-        $this->assertSame(0, $items->where('sourceType', 'document_submission')->count());
+        $this->assertSame(1, $items->where('sourceType', 'document_submission')->count());
+        $cashSubmission = $items->firstWhere('sourceType', 'document_submission');
+        $this->assertSame('Pemberkasan CASH selesai', $cashSubmission->title);
         $this->assertNotNull($items->firstWhere('sourceType', 'akad_record'));
         $this->assertNotNull($items->firstWhere('sourceType', 'bast_record'));
     }
@@ -345,7 +360,9 @@ class PhaseSixWorkspaceTest extends TestCase
         $items = app(SalesCaseTimelineService::class)->forCase($caseA->refresh());
         $noteItem = $items->firstWhere('sourceType', 'case_note');
         $this->assertNotNull($noteItem);
-        $this->assertSame('NOTE', $noteItem->status);
+        $this->assertSame('Catatan', $noteItem->title);
+        $this->assertNull($noteItem->status);
+        $this->assertSame('neutral', $noteItem->tone);
     }
 
     public function test_notes_follow_branch_and_role_permissions(): void
@@ -407,11 +424,8 @@ class PhaseSixWorkspaceTest extends TestCase
     private function cashCase(): SalesCase
     {
         $case = $this->newCase(FinancingType::Cash);
-        app(RecordBiCheckAction::class)->handle($this->hq, [
-            'sales_case_id' => $case->id, 'check_date' => now()->toDateString(), 'result' => BiCheckResult::Clear,
-        ]);
         app(CreatePsjbAction::class)->handle($this->hq, ['sales_case_id' => $case->id, 'psjb_date' => now()->toDateString()]);
-        app(AdvanceCashCaseToPpjbAction::class)->handle($this->hq, $case);
+        app(CompleteCashPemberkasanAction::class)->handle($this->hq, $case);
 
         return $case->refresh();
     }
@@ -419,11 +433,8 @@ class PhaseSixWorkspaceTest extends TestCase
     private function cashCaseOn(Unit $unit): SalesCase
     {
         $case = $this->newCase(FinancingType::Cash, $unit);
-        app(RecordBiCheckAction::class)->handle($this->hq, [
-            'sales_case_id' => $case->id, 'check_date' => now()->toDateString(), 'result' => BiCheckResult::Clear,
-        ]);
         app(CreatePsjbAction::class)->handle($this->hq, ['sales_case_id' => $case->id, 'psjb_date' => now()->toDateString()]);
-        app(AdvanceCashCaseToPpjbAction::class)->handle($this->hq, $case);
+        app(CompleteCashPemberkasanAction::class)->handle($this->hq, $case);
 
         return $case->refresh();
     }

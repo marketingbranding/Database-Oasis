@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources\SalesCases\Actions;
 
-use App\Actions\AdvanceCashCaseToPpjbAction;
 use App\Actions\CancelDeveloperPpjbAction;
 use App\Actions\CancelPsjbAction;
+use App\Actions\CompleteCashPemberkasanAction;
 use App\Actions\CreateAkadAction;
 use App\Actions\CreateBastAction;
 use App\Actions\CreateDeveloperPpjbAction;
@@ -17,6 +17,7 @@ use App\Actions\ReissuePsjbAction;
 use App\Actions\UpsertAkadReadinessAction;
 use App\BankResponseType;
 use App\BiCheckResult;
+use App\DocumentSubmissionType;
 use App\DpStatus;
 use App\FinancingType;
 use App\Models\Bank;
@@ -53,7 +54,7 @@ class WorkspaceActions
             SalesCaseStage::DataKonsumen, SalesCaseStage::BiChecking => self::addBiCheck(),
             SalesCaseStage::Psjb => self::createPsjb(),
             SalesCaseStage::Pemberkasan => $record->financing_type === FinancingType::Cash
-                ? self::advanceCash()
+                ? self::completeCashPemberkasan()
                 : self::addPemberkasan(),
             SalesCaseStage::ProsesBank => self::recordBankResponse(),
             SalesCaseStage::PpjbDev => self::createPpjbDeveloper(),
@@ -78,7 +79,7 @@ class WorkspaceActions
             'cancelPsjb' => self::cancelPsjb(),
             'addPemberkasan' => self::addPemberkasan(),
             'recordBankResponse' => self::recordBankResponse(),
-            'advanceCash' => self::advanceCash(),
+            'completeCashPemberkasan' => self::completeCashPemberkasan(),
             'createPpjbDeveloper' => self::createPpjbDeveloper(),
             'reissuePpjbDeveloper' => self::reissuePpjbDeveloper(),
             'cancelPpjbDeveloper' => self::cancelPpjbDeveloper(),
@@ -233,20 +234,21 @@ class WorkspaceActions
             });
     }
 
-    private static function advanceCash(): Action
+    private static function completeCashPemberkasan(): Action
     {
-        return Action::make('advanceCash')
-            ->label('Advance CASH ke PPJB')
-            ->icon(Heroicon::OutlinedBanknotes)
+        return Action::make('completeCashPemberkasan')
+            ->label('Selesaikan Pemberkasan CASH')
+            ->icon(Heroicon::OutlinedClipboardDocumentList)
             ->color('primary')
             ->requiresConfirmation()
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
                 && $case->financing_type === FinancingType::Cash
                 && $case->current_stage === SalesCaseStage::Pemberkasan
-                && $case->activePsjb()->exists())
+                && $case->activePsjb()->exists()
+                && self::canUpdate($case))
             ->action(function (SalesCase $case): void {
-                app(AdvanceCashCaseToPpjbAction::class)->handle(self::user(), $case);
-                self::notify('CASH case maju ke PPJB Developer.');
+                app(CompleteCashPemberkasanAction::class)->handle(self::user(), $case);
+                self::notify('Pemberkasan CASH selesai. Lanjut ke PPJB Developer.');
             });
     }
 
@@ -260,7 +262,8 @@ class WorkspaceActions
                 && $case->activeDeveloperPpjb()->doesntExist()
                 && $case->akad()->doesntExist()
                 && ($case->financing_type === FinancingType::Cash
-                    ? $case->current_stage->isBeyond(SalesCaseStage::ProsesBank)
+                    ? $case->documentSubmissions()->where('type', DocumentSubmissionType::CashInternal->value)->exists()
+                        && $case->current_stage->isBeyond(SalesCaseStage::Pemberkasan)
                     : $case->currentApprovedBankProcess()->exists()))
             ->form(self::ppjbFields())
             ->action(function (array $data, SalesCase $case): void {

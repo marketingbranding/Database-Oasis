@@ -2,14 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Actions\AdvanceCashCaseToPpjbAction;
+use App\Actions\CompleteCashPemberkasanAction;
 use App\Actions\CreateAkadAction;
 use App\Actions\CreateBastAction;
 use App\Actions\CreateDeveloperPpjbAction;
 use App\Actions\CreatePsjbAction;
 use App\Actions\CreateSalesCaseAction;
-use App\Actions\RecordBiCheckAction;
-use App\BiCheckResult;
 use App\Filament\Resources\AkadRecords\Pages\ListAkadRecords;
 use App\Filament\Resources\BastRecords\Pages\ListBastRecords;
 use App\Filament\Resources\DeveloperPpjbs\Pages\ListDeveloperPpjbs;
@@ -62,9 +60,8 @@ class PhaseFiveFilamentTest extends TestCase
     {
         $unit = Unit::factory()->for(Project::factory()->for($branch))->create();
         $case = app(CreateSalesCaseAction::class)->handle($hq, ['unit_id' => $unit->id, 'consumer_id' => Consumer::factory()->create()->id, 'financing_type' => FinancingType::Cash]);
-        app(RecordBiCheckAction::class)->handle($hq, ['sales_case_id' => $case->id, 'check_date' => '2026-09-01', 'result' => BiCheckResult::Clear]);
         app(CreatePsjbAction::class)->handle($hq, ['sales_case_id' => $case->id, 'psjb_date' => '2026-09-02']);
-        app(AdvanceCashCaseToPpjbAction::class)->handle($hq, $case);
+        app(CompleteCashPemberkasanAction::class)->handle($hq, $case);
         $ppjb = app(CreateDeveloperPpjbAction::class)->handle($hq, ['sales_case_id' => $case->id, 'document_date' => '2026-09-10']);
         $akad = app(CreateAkadAction::class)->handle($hq, ['sales_case_id' => $case->id, 'developer_ppjb_id' => $ppjb->id, 'akad_date' => '2026-09-20']);
         $bast = app(CreateBastAction::class)->handle($hq, ['sales_case_id' => $case->id, 'akad_id' => $akad->id, 'bast_date' => '2026-09-30']);

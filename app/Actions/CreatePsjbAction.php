@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\BiCheckResult;
+use App\FinancingType;
 use App\Models\BiCheck;
 use App\Models\Psjb;
 use App\Models\SalesCase;
@@ -36,10 +37,12 @@ class CreatePsjbAction
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case tidak aktif.']);
             }
 
-            $latestBi = BiCheck::latestForCase($case->id);
+            if ($case->financing_type === FinancingType::KprSubsidi) {
+                $latestBi = BiCheck::latestForCase($case->id);
 
-            if ($latestBi === null || $latestBi->result !== BiCheckResult::Clear) {
-                throw ValidationException::withMessages(['sales_case_id' => 'BI checking terakhir belum CLEAR. PSJB tidak dapat dibuat.']);
+                if ($latestBi === null || $latestBi->result !== BiCheckResult::Clear) {
+                    throw ValidationException::withMessages(['sales_case_id' => 'BI checking terakhir belum CLEAR. PSJB tidak dapat dibuat.']);
+                }
             }
 
             if ($case->activePsjb()->exists()) {

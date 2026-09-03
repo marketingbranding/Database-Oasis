@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Actions\AdvanceCashCaseToPpjbAction;
 use App\Actions\CancelDeveloperPpjbAction;
 use App\Actions\CancelSalesCaseAction;
+use App\Actions\CompleteCashPemberkasanAction;
 use App\Actions\CreateAkadAction;
 use App\Actions\CreateBastAction;
 use App\Actions\CreateDeveloperPpjbAction;
@@ -20,6 +20,7 @@ use App\Actions\ReissueDeveloperPpjbAction;
 use App\BankResponseType;
 use App\BiCheckResult;
 use App\DeveloperPpjbStatus;
+use App\DocumentSubmissionType;
 use App\FinancingType;
 use App\Models\AkadRecord;
 use App\Models\Bank;
@@ -28,6 +29,7 @@ use App\Models\BastRecord;
 use App\Models\Branch;
 use App\Models\Consumer;
 use App\Models\DeveloperPpjb;
+use App\Models\DocumentSubmission;
 use App\Models\Project;
 use App\Models\Psjb;
 use App\Models\SalesCase;
@@ -72,17 +74,17 @@ class PhaseFiveWorkflowTest extends TestCase
         $this->assertTrue($case->refresh()->current_stage === SalesCaseStage::Akad);
     }
 
-    public function test_cash_ppjb_requires_cash_advance_and_has_null_bank_process(): void
+    public function test_cash_ppjb_requires_completed_pemberkasan_and_has_null_bank_process(): void
     {
         $case = $this->baseCase(FinancingType::Cash);
         $this->preparePsjb($case);
         $this->expectValidation(fn () => $this->createPpjb($case));
-        app(AdvanceCashCaseToPpjbAction::class)->handle($this->hq, $case);
+        app(CompleteCashPemberkasanAction::class)->handle($this->hq, $case);
 
         $ppjb = $this->createPpjb($case);
         $this->assertNull($ppjb->bank_process_id);
         $this->assertDatabaseCount('bank_processes', 0);
-        $this->assertDatabaseCount('document_submissions', 0);
+        $this->assertDatabaseCount('document_submissions', 1);
     }
 
     public function test_ppjb_reissue_and_cancel_preserve_history_before_akad(): void
@@ -224,7 +226,7 @@ class PhaseFiveWorkflowTest extends TestCase
             $this->assertTrue($case->refresh()->case_status === SalesCaseStatus::Completed);
         }
         $this->assertDatabaseCount('bank_processes', 0);
-        $this->assertDatabaseCount('document_submissions', 0);
+        $this->assertSame(5, DocumentSubmission::query()->where('type', DocumentSubmissionType::CashInternal->value)->count());
         $this->assertSame(5, DeveloperPpjb::query()->count());
     }
 
@@ -254,7 +256,9 @@ class PhaseFiveWorkflowTest extends TestCase
 
     private function preparePsjb(SalesCase $case): Psjb
     {
-        app(RecordBiCheckAction::class)->handle($this->hq, ['sales_case_id' => $case->id, 'check_date' => '2026-09-01', 'result' => BiCheckResult::Clear]);
+        if ($case->financing_type === FinancingType::KprSubsidi) {
+            app(RecordBiCheckAction::class)->handle($this->hq, ['sales_case_id' => $case->id, 'check_date' => '2026-09-01', 'result' => BiCheckResult::Clear]);
+        }
 
         return app(CreatePsjbAction::class)->handle($this->hq, ['sales_case_id' => $case->id, 'psjb_date' => '2026-09-02']);
     }
@@ -263,7 +267,7 @@ class PhaseFiveWorkflowTest extends TestCase
     {
         $case = $this->baseCase(FinancingType::Cash);
         $this->preparePsjb($case);
-        app(AdvanceCashCaseToPpjbAction::class)->handle($this->hq, $case);
+        app(CompleteCashPemberkasanAction::class)->handle($this->hq, $case);
 
         return $case;
     }

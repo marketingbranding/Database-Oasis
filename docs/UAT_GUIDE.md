@@ -36,7 +36,7 @@ Branches: Jepara (projects Marison Regency A/B), Semarang (Semarang Indah). Bank
 
 ## Scenario walkthroughs
 
-For every case open `Operasional → Sales Cases`, use the Konsumen search to find the case, open it, and check the stepper, timeline, and Akad Readiness section.
+For every case open `Operasional → Sales Cases`, use the Konsumen search to find the case, open it, and check the process summary cards, financing-aware stepper, and vertical timeline (oldest at the top, newest at the bottom).
 
 ### 1. KPR normal (completed chain)
 
@@ -53,7 +53,7 @@ Expected: full chain rendered from real records; no fabricated data.
 
 Case: **Citra Lestari**, unit A-02.
 
-1. Timeline contains **Response Bank BTN — Rejected** and **Response Bank BRI — Approved (SP3K-UAT-002)**.
+1. Timeline groups attempts: "Pemberkasan #1 — BTN" followed by its PROCESS and REJECTED responses, then "Pemberkasan #2 — BRI" followed by its APPROVED response with SP3K-UAT-002. Each response is tagged with its own attempt.
 2. Case stays ACTIVE at stage PPJB_DEV. Unit stays BOOKING.
 3. Monitoring (`Monitoring → SP3K & Kendala`) lists the case once; Bank column shows **Bank BRI**, not BTN.
 4. Readiness is fully CLEAR: Kendala count 0.
@@ -62,9 +62,10 @@ Case: **Citra Lestari**, unit A-02.
 
 Case: **Dedi Pratama**, unit A-03.
 
-1. Timeline shows BI → PSJB → "CASH case maju ke PPJB" → PPJB → Akad → BAST. **No** bank or SP3K entries.
-2. Financing badge shows CASH.
-3. `Bank Processes` resource contains no rows for this case; monitoring SP3K table does not list it.
+1. Timeline reads top-to-bottom: Sales Case dibuat → PSJB dibuat → **Pemberkasan CASH selesai** → PPJB Developer dibuat → Akad → BAST. **No** BI Checking, bank, or SP3K entries.
+2. Stepper shows only: Data Konsumen, PSJB, Pemberkasan, PPJB Developer, Akad, BAST, Completed — BI Checking and Proses Bank are not part of the CASH stepper.
+3. Financing badge shows CASH; process summary shows Pemberkasan CASH status, no meaningless Bank/Response/SP3K placeholders.
+4. `Bank Processes` resource contains no rows for this case; monitoring SP3K table does not list it.
 
 ### 4. Pindah Kavling (K-20 → K-15)
 

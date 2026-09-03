@@ -3,6 +3,8 @@
 namespace App\Actions;
 
 use App\DeveloperPpjbStatus;
+use App\DocumentSubmissionStatus;
+use App\DocumentSubmissionType;
 use App\FinancingType;
 use App\Models\BankProcess;
 use App\Models\DeveloperPpjb;
@@ -40,8 +42,13 @@ class CreateDeveloperPpjbAction
                 }
                 $bankProcessId = $approval->id;
             } else {
-                if (! $case->activePsjb()->exists() || ! $case->current_stage->isBeyond(SalesCaseStage::ProsesBank)) {
-                    throw ValidationException::withMessages(['sales_case_id' => 'CASH harus melewati CASH advance dan memiliki PSJB aktif.']);
+                $hasCashPemberkasan = $case->documentSubmissions()
+                    ->where('type', DocumentSubmissionType::CashInternal->value)
+                    ->whereNotIn('status', [DocumentSubmissionStatus::Cancelled->value])
+                    ->exists();
+
+                if (! $case->activePsjb()->exists() || ! $hasCashPemberkasan || ! $case->current_stage->isBeyond(SalesCaseStage::Pemberkasan)) {
+                    throw ValidationException::withMessages(['sales_case_id' => 'CASH memerlukan PSJB aktif dan Pemberkasan CASH selesai sebelum PPJB.']);
                 }
             }
 

@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\DocumentSubmissionStatus;
+use App\DocumentSubmissionType;
 use App\FinancingType;
 use App\Models\Bank;
 use App\Models\DocumentSubmission;
@@ -39,7 +40,7 @@ class CreateDocumentSubmissionAction
             }
 
             if ($case->financing_type !== FinancingType::KprSubsidi) {
-                throw ValidationException::withMessages(['sales_case_id' => 'Pemberkasan bank hanya untuk KPR Subsidi.']);
+                throw ValidationException::withMessages(['sales_case_id' => 'Pemberkasan bank hanya untuk KPR Subsidi. Gunakan Pemberkasan CASH.']);
             }
 
             /** @var Psjb|null $psjb */
@@ -75,6 +76,7 @@ class CreateDocumentSubmissionAction
                     'bank_branch' => $data['bank_branch'] ?? null,
                     'sequence' => $sequence,
                     'status' => DocumentSubmissionStatus::Submitted,
+                    'type' => DocumentSubmissionType::Bank,
                     'notes' => $data['notes'] ?? null,
                     'created_by' => $user->id,
                 ]);
