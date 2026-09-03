@@ -24,6 +24,8 @@ class BankProcessResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Proses Penjualan';
 
+    protected static ?int $navigationSort = 3;
+
     protected static ?string $navigationLabel = 'Proses Bank';
 
     protected static ?string $modelLabel = 'Proses Bank';

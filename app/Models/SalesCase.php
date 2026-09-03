@@ -149,6 +149,12 @@ class SalesCase extends Model
         return $this->hasOne(BastRecord::class);
     }
 
+    /** @return HasOne<AkadReadiness, $this> */
+    public function akadReadiness(): HasOne
+    {
+        return $this->hasOne(AkadReadiness::class);
+    }
+
     /** @return HasMany<CaseNote, $this> */
     public function caseNotes(): HasMany
     {
@@ -217,8 +223,9 @@ class SalesCase extends Model
             SalesCaseStage::BiChecking->value, SalesCaseStage::Psjb->value => $this->aggregateDate('biChecks', 'check_date'),
             SalesCaseStage::Pemberkasan->value => $this->aggregateDate('psjbs', 'psjb_date'),
             SalesCaseStage::ProsesBank->value => $this->aggregateDate('documentSubmissions', 'submission_date'),
-            SalesCaseStage::PpjbDev->value => $this->eagerMaxDate('currentApprovedBankProcess', 'response_date')
-                ?? $this->aggregateDate('psjbs', 'psjb_date'),
+            SalesCaseStage::PpjbDev->value => $this->financing_type === FinancingType::Cash
+                ? $this->aggregateDate('documentSubmissions', 'submission_date') ?? $this->aggregateDate('psjbs', 'psjb_date')
+                : $this->eagerMaxDate('currentApprovedBankProcess', 'response_date') ?? $this->aggregateDate('psjbs', 'psjb_date'),
             SalesCaseStage::Akad->value => $this->aggregateDate('developerPpjbs', 'document_date'),
             SalesCaseStage::Bast->value => $this->eagerMaxDate('akad', 'akad_date'),
             SalesCaseStage::Completed->value => $this->eagerMaxDate('bast', 'bast_date') ?? $this->closed_at,
@@ -234,11 +241,16 @@ class SalesCase extends Model
     }
 
     /**
-     * @return array<string, 'done'|'current'|'upcoming'> keyed by stage value
+     * @return array<string, 'done'|'current'|'upcoming'> keyed by stage value.
+     *                                                    Financing-aware: CASH cases never show BI Checking or Proses Bank.
      */
     public function stageProgress(): array
     {
         $current = $this->current_stage;
+
+        $stages = $this->financing_type === FinancingType::Cash
+            ? array_filter(SalesCaseStage::cases(), fn (SalesCaseStage $stage): bool => ! in_array($stage, [SalesCaseStage::BiChecking, SalesCaseStage::ProsesBank], true))
+            : SalesCaseStage::cases();
 
         $evidence = [
             SalesCaseStage::DataKonsumen->value => true,
@@ -253,7 +265,7 @@ class SalesCase extends Model
         ];
 
         $progress = [];
-        foreach (SalesCaseStage::cases() as $stage) {
+        foreach ($stages as $stage) {
             $progress[$stage->value] = match (true) {
                 $stage === $current => 'current',
                 $evidence[$stage->value] => 'done',

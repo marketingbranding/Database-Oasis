@@ -24,6 +24,8 @@ class BastRecordResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Proses Penjualan';
 
+    protected static ?int $navigationSort = 6;
+
     protected static ?string $navigationLabel = 'BAST';
 
     public static function form(Schema $schema): Schema

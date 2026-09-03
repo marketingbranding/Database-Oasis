@@ -111,7 +111,7 @@ class SalesCaseResource extends Resource
         $query = parent::getEloquentQuery()
             ->with([
                 'consumer', 'branch', 'project', 'unit',
-                'activePsjb', 'activeDeveloperPpjb', 'akad', 'bast',
+                'activePsjb', 'activeDeveloperPpjb', 'akad', 'bast', 'akadReadiness',
                 'latestSubmission.bank', 'latestBankProcess.bank', 'currentApprovedBankProcess',
             ])
             // Aggregate stage-entry dates for aging without N+1 (see

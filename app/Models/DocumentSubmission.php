@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\DocumentSubmissionStatus;
+use App\DocumentSubmissionType;
 use Database\Factories\DocumentSubmissionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['sales_case_id', 'psjb_id', 'bank_id', 'submission_date', 'bank_branch', 'sequence', 'status', 'notes', 'created_by'])]
+#[Fillable(['sales_case_id', 'psjb_id', 'bank_id', 'submission_date', 'bank_branch', 'sequence', 'status', 'type', 'notes', 'created_by'])]
 class DocumentSubmission extends Model
 {
     /** @use HasFactory<DocumentSubmissionFactory> */
@@ -23,6 +24,7 @@ class DocumentSubmission extends Model
             'submission_date' => 'date',
             'sequence' => 'integer',
             'status' => DocumentSubmissionStatus::class,
+            'type' => DocumentSubmissionType::class,
         ];
     }
 

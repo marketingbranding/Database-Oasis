@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\SalesCases\RelationManagers;
 
-use App\Actions\AdvanceCashCaseToPpjbAction;
 use App\Actions\RecordBankResponseAction;
 use App\BankResponseType;
 use App\FinancingType;
@@ -37,7 +36,7 @@ class BankProcessesRelationManager extends RelationManager
             TextColumn::make('response_date')->label('Tanggal')->date(),
             TextColumn::make('sp3k_number')->label('SP3K')->placeholder('-'),
             IconColumn::make('is_authoritative')->label('Authoritative')->boolean(),
-        ])->headerActions([$this->recordResponseAction(), $this->advanceCashAction()])->defaultSort('response_date', 'desc');
+        ])->headerActions([$this->recordResponseAction()])->defaultSort('response_date', 'desc');
     }
 
     private function recordResponseAction(): Action
@@ -71,24 +70,6 @@ class BankProcessesRelationManager extends RelationManager
                     'sales_case_id' => $case->getKey(), 'bank_id' => $submission->bank_id, ...$data,
                 ]);
                 Notification::make()->title('Bank response dicatat')->success()->send();
-            });
-    }
-
-    private function advanceCashAction(): Action
-    {
-        return Action::make('advanceCash')->label('Advance CASH to PPJB')->icon(Heroicon::OutlinedBanknotes)
-            ->requiresConfirmation()->visible(function (RelationManager $livewire): bool {
-                $case = $livewire->getOwnerRecord();
-
-                return $case instanceof SalesCase && $case->case_status === SalesCaseStatus::Active
-                    && $case->financing_type === FinancingType::Cash && (User::current()?->can('update', $case) ?? false);
-            })->action(function (RelationManager $livewire): void {
-                $case = $livewire->getOwnerRecord();
-                if (! $case instanceof SalesCase) {
-                    abort(404);
-                }
-                app(AdvanceCashCaseToPpjbAction::class)->handle(User::current() ?? abort(403), $case);
-                Notification::make()->title('CASH case maju ke PPJB Developer')->success()->send();
             });
     }
 }

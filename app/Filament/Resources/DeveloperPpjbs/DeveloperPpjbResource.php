@@ -24,6 +24,8 @@ class DeveloperPpjbResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Proses Penjualan';
 
+    protected static ?int $navigationSort = 4;
+
     protected static ?string $navigationLabel = 'PPJB Developer';
 
     public static function form(Schema $schema): Schema

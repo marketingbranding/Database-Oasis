@@ -24,6 +24,8 @@ class DocumentSubmissionResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Proses Penjualan';
 
+    protected static ?int $navigationSort = 2;
+
     protected static ?string $navigationLabel = 'Pemberkasan';
 
     protected static ?string $modelLabel = 'Pemberkasan';

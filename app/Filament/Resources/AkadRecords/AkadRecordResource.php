@@ -24,6 +24,8 @@ class AkadRecordResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Proses Penjualan';
 
+    protected static ?int $navigationSort = 5;
+
     protected static ?string $navigationLabel = 'Akad';
 
     public static function form(Schema $schema): Schema
