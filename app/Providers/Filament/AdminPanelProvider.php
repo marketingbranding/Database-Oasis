@@ -29,6 +29,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('Database Oasis')
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->navigationGroups(['Dashboard', 'Operasional', 'Proses Penjualan', 'Monitoring', 'Master Data', 'System'])
             ->colors([
                 'primary' => Color::Amber,
