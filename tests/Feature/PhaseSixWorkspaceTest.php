@@ -18,6 +18,12 @@ use App\Actions\RecordBiCheckAction;
 use App\BankResponseType;
 use App\BiCheckResult;
 use App\DocumentSubmissionType;
+use App\Filament\Resources\AkadRecords\AkadRecordResource;
+use App\Filament\Resources\BankProcesses\BankProcessResource;
+use App\Filament\Resources\BastRecords\BastRecordResource;
+use App\Filament\Resources\DeveloperPpjbs\DeveloperPpjbResource;
+use App\Filament\Resources\DocumentSubmissions\DocumentSubmissionResource;
+use App\Filament\Resources\Psjbs\PsjbResource;
 use App\Filament\Resources\SalesCases\Pages\ViewSalesCase;
 use App\Filament\Resources\SalesCases\SalesCaseResource;
 use App\FinancingType;
@@ -75,18 +81,36 @@ class PhaseSixWorkspaceTest extends TestCase
             ->assertSeeText('Response Bank — BRI')
             ->assertSeeText('Rejected')
             ->assertSeeText('Approved');
+
+        $this->view('filament.sales-case.timeline', [
+            'items' => app(SalesCaseTimelineService::class)->forCase($case),
+        ])->assertSeeTextInOrder([
+            'BI Checking',
+            'PSJB dibuat',
+            'Pemberkasan #1 — BTN',
+            'Response Bank — BTN',
+            'Rejected',
+            'Pemberkasan #2 — BRI',
+            'Response Bank — BRI',
+            'Approved',
+        ]);
     }
 
     public function test_workspace_kpr_summary_shows_bank_and_sp3k_without_fabrication(): void
     {
         $case = $this->kprCaseAtProsesBank();
 
-        $items = app(SalesCaseTimelineService::class)->forCase($case);
-
         $this->assertSame('BRI', $case->latestSubmission->bank->name);
         $this->assertSame('APPROVED', $case->latestBankProcess->response_type->value);
         $this->assertSame('SP3K-BRI-1', $case->currentApprovedBankProcess->sp3k_number);
         $this->assertNotNull($case->daysInCurrentStage());
+
+        $this->actingAs($this->hq);
+        Livewire::test(ViewSalesCase::class, ['record' => $case->id])
+            ->assertSuccessful()
+            ->assertSeeText('Bank saat ini')
+            ->assertSeeText('Response terakhir')
+            ->assertSeeText('SP3K: SP3K-BRI-1');
     }
 
     public function test_workspace_cash_summary_has_no_fake_bank_or_sp3k(): void
@@ -104,7 +128,10 @@ class PhaseSixWorkspaceTest extends TestCase
         Livewire::test(ViewSalesCase::class, ['record' => $case->id])
             ->assertSuccessful()
             ->assertSeeText('CASH')
-            ->assertSeeText('Pemberkasan CASH');
+            ->assertSeeText('Progress CASH')
+            ->assertSeeText('Pemberkasan selesai')
+            ->assertDontSeeText('Bank saat ini')
+            ->assertDontSeeText('Response terakhir');
     }
 
     public function test_completed_and_closed_workspaces_render_final_status_cards(): void
@@ -138,6 +165,30 @@ class PhaseSixWorkspaceTest extends TestCase
         $this->assertSame('done', $progress[SalesCaseStage::ProsesBank->value]);
         $this->assertSame('current', $progress[SalesCaseStage::PpjbDev->value]);
         $this->assertSame('upcoming', $progress[SalesCaseStage::Akad->value]);
+    }
+
+    public function test_process_navigation_follows_business_order(): void
+    {
+        $resources = [
+            PsjbResource::class,
+            DocumentSubmissionResource::class,
+            BankProcessResource::class,
+            DeveloperPpjbResource::class,
+            AkadRecordResource::class,
+            BastRecordResource::class,
+        ];
+
+        $this->assertSame([1, 2, 3, 4, 5, 6], array_map(
+            fn (string $resource): ?int => $resource::getNavigationSort(),
+            $resources,
+        ));
+        $this->assertSame(
+            ['PSJB', 'Pemberkasan', 'Proses Bank', 'PPJB Developer', 'Akad', 'BAST'],
+            array_map(fn (string $resource): string => (string) $resource::getNavigationLabel(), $resources),
+        );
+        $this->assertTrue(collect($resources)->every(
+            fn (string $resource): bool => $resource::getNavigationGroup() === 'Proses Penjualan',
+        ));
     }
 
     public function test_quick_action_visibility_follows_eligibility_and_hidden_cannot_bypass(): void

@@ -24,6 +24,8 @@ class PsjbResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Proses Penjualan';
 
+    protected static ?int $navigationSort = 1;
+
     protected static ?string $navigationLabel = 'PSJB';
 
     protected static ?string $modelLabel = 'PSJB';

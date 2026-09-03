@@ -22,7 +22,9 @@ class BiCheckResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Proses Penjualan';
+    protected static string|UnitEnum|null $navigationGroup = 'Operasional';
+
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $navigationLabel = 'BI Checking';
 
