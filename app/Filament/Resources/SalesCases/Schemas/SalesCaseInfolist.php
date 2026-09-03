@@ -58,6 +58,19 @@ class SalesCaseInfolist
                             ->badge()
                             ->formatStateUsing(fn (SalesCaseStatus $state): string => $state->getLabel()),
                     ]),
+                Section::make('Akad Readiness')
+                    ->columns(4)
+                    ->schema([
+                        TextEntry::make('akadReadiness.building_progress')->label('Progress Bangunan')->suffix('%')->placeholder('-'),
+                        TextEntry::make('akadReadiness.building_status')->label('Bangunan')->badge()->placeholder('UNKNOWN'),
+                        TextEntry::make('akadReadiness.dp_status')->label('DP')->badge()->placeholder('UNKNOWN'),
+                        TextEntry::make('akadReadiness.electricity_status')->label('Listrik')->badge()->placeholder('UNKNOWN'),
+                        TextEntry::make('akadReadiness.water_status')->label('Air')->badge()->placeholder('UNKNOWN'),
+                        TextEntry::make('akadReadiness.consumer_status')->label('Konsumen')->badge()->placeholder('UNKNOWN'),
+                        TextEntry::make('akadReadiness.consumer_note')->label('Catatan Konsumen')->placeholder('-'),
+                        TextEntry::make('readiness_issue_count')->label('Jumlah Kendala')
+                            ->state(fn (SalesCase $record): int => $record->akadReadiness?->issueCount() ?? 0),
+                    ]),
                 Section::make('Status Akhir')
                     ->visible(fn (SalesCase $record): bool => $record->case_status !== SalesCaseStatus::Active)
                     ->columns(3)

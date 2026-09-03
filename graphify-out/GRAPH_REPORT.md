@@ -1,16 +1,16 @@
-# Graph Report - Database-Oasis  (2026-09-03)
+# Graph Report - Database Oasis  (2026-09-03)
 
 ## Corpus Check
-- 305 files · ~81,380 words
+- 337 files · ~87,357 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1660 nodes · 4283 edges · 255 communities (67 shown, 174 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 99 edges (avg confidence: 0.83)
+- 1862 nodes · 4953 edges · 279 communities (111 shown, 168 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 94 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `32e10ead`
+- Built from commit: `6e3ba81e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,7 +22,7 @@
 - Illuminate\Database\Migrations\Migration
 - scripts
 - AdminPanelProvider.php
-- Filament\Tables\Table
+- BranchResource.php
 - Filament\Actions\Action
 - Testing Best Practices (skill)
 - package.json
@@ -30,24 +30,24 @@
 - Illuminate\Database\Eloquent\Relations\BelongsTo
 - Illuminate\Database\Eloquent\Builder
 - SalesCase
-- Filament\Schemas\Schema
+- UnitResource.php
 - Filament\Resources\Pages\CreateRecord
 - Filament\Resources\Pages\ListRecords
 - Convention Detection Checklist
-- ConsumerResource.php
-- Unit
+- Filament\Resources\Pages\EditRecord
+- UserRole.php
 - PhaseSixWorkspaceTest
-- SalesCaseResource.php
+- Filament\Tables\Table
 - command
 - Queue and Job Best Practices
 - Security Best Practices
-- TimelineItem
+- Carbon\CarbonInterface
 - DatabaseSeeder.php
 - Test Value Review Checklist
 - laravel-best-practices skill
 - tailwindcss-development skill
 - Routing and Controller Best Practices
-- Illuminate\Database\Eloquent\Factories\HasFactory
+- AkadRecord
 - infer-conventions skill
 - Architecture Best Practices
 - Database Performance Best Practices
@@ -157,7 +157,7 @@
 - shouldRenderJsonWhen JSON policy for API routes
 - ShouldntReport interface
 - Event discovery for listeners
-- Psjb
+- PhaseFiveWorkflowTest.php
 - On-demand notifications (Notification::route)
 - Explicit HTTP error handling (throw/successful/notFound)
 - ProjectResource.php
@@ -171,17 +171,17 @@
 - Back off transient failures ($tries/$backoff)
 - Bus::batch job batching
 - Job failed() terminal handling
-- Filament\Support\Contracts\HasLabel
+- SalesCaseStatus.php
 - Implicit route model binding
 - Resource-oriented controller organization
 - Resource routes (resource/apiResource)
 - Bound work inside the scheduled task
 - runInBackground scheduled tasks
-- Illuminate\Database\Eloquent\Relations\HasMany
+- Illuminate\Database\Eloquent\Factories\HasFactory
 - withoutOverlapping lock
 - CSRF protection (@csrf / X-XSRF-TOKEN)
 - Bind query parameters (no SQL interpolation)
-- Illuminate\Support\Str
+- Illuminate\Database\Eloquent\Factories\Factory
 - Comments explain why
 - Idiomatic Laravel syntax
 - Str/Arr/Number/Uri utilities
@@ -209,42 +209,48 @@
 - Consistency first (project conventions win)
 - Feature test first
 - Test observable behavior and contracts
-- SalesCaseResource
-- BastRecordResource.php
-- UserResource.php
+- PhaseSevenMonitoringTest
+- Filament\Schemas\Schema
+- UserResource
 - PhaseZeroFoundationTest
-- PsjbStatus
-- Illuminate\Database\Eloquent\Factories\Factory
+- MonitoringScope
+- Sp3kMonitoring.php
 - ManageBranches
 - .createAction
-- BastStatus
-- CreateBastRecord.php
-- CreateDeveloperPpjb.php
-- CreateProject
-- CreatePsjb.php
-- ProjectStatus
+- PhaseSevenMonitoringTest.php
+- BastRecordResource
+- PhaseTwoCaseWorkflowTest
+- PhaseTwoBranchIsolationTest
+- AkadReadiness
+- Branch
 - BankPolicy
 - BranchPolicy
 - ConsumerPolicy
-- ProjectPolicy
+- PhaseSevenFilamentTest
 - UserPolicy
-- Illuminate\Database\Eloquent\Attributes\Fillable
-- Branch.php
-- Unit.php
+- Monitoring Definitions
+- AkadRecordResource.php
+- DeveloperPpjbResource.php
 - SalesCasePolicy
-- UnitPolicy
+- DocumentSubmissionResource.php
 - AkadRecordPolicy.php
 - BankProcessPolicy.php
 - BastRecordPolicy.php
-- Branch
-- CaseNotePolicy.php
+- Project
+- CloseSalesCaseAction
 - DocumentSubmissionPolicy.php
 - PsjbPolicy.php
 - .current
-- PhaseThreePsjbTest
-- BiCheckResult
+- BankProcessResource
+- AkadTargetPolicy
+- Illuminate\Database\Schema\Blueprint
+- Illuminate\Support\Facades\Schema
+- BiCheckPolicy.php
+- DeveloperPpjbPolicy.php
+- Psjb
+- BiCheck
 - Bank
-- PhaseTwoConsumerTest
+- Consumer
 - Testing Best Practices skill
 - require-dev
 - config
@@ -258,16 +264,16 @@
 - graphify.js
 
 ## God Nodes (most connected - your core abstractions)
-1. `User` - 320 edges
-2. `SalesCase` - 175 edges
-3. `Branch` - 105 edges
-4. `Unit` - 68 edges
-5. `Consumer` - 62 edges
-6. `Project` - 59 edges
-7. `SalesCaseStatus` - 46 edges
-8. `Bank` - 45 edges
-9. `FinancingType` - 41 edges
-10. `BiCheckResult` - 37 edges
+1. `User` - 363 edges
+2. `SalesCase` - 192 edges
+3. `Branch` - 136 edges
+4. `Project` - 80 edges
+5. `Unit` - 72 edges
+6. `Consumer` - 66 edges
+7. `Bank` - 51 edges
+8. `DeveloperPpjb` - 38 edges
+9. `AkadRecord` - 35 edges
+10. `DocumentSubmission` - 35 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `php artisan test --compact step` --references--> `Testing Best Practices skill`  [INFERRED]
@@ -298,23 +304,19 @@
 - **N+1 Query Prevention Pattern** — _claude_skills_laravel_best_practices_rules_db_performance_eager_loading, _claude_skills_laravel_best_practices_rules_db_performance_prevent_lazy_loading, _claude_skills_laravel_best_practices_rules_db_performance_select_needed_columns, _claude_skills_laravel_best_practices_rules_db_performance_with_count, _claude_skills_laravel_best_practices_rules_advanced_queries_correlated_subquery_select [INFERRED 0.85]
 - **Phase 0 Bootstrap Foundation** — docs_phase_0_prompt_phase_0_bootstrap, docs_master_build_pack_tech_stack, docs_master_build_pack_health_endpoint, docs_master_build_pack_rbac_roles, agents_code_quality_toolchain, compose_app, compose_postgres [INFERRED 0.95]
 
-## Communities (255 total, 174 thin omitted)
+## Communities (279 total, 168 thin omitted)
 
 ### Community 0 - "composer.json"
 Cohesion: 0.14
 Nodes (13): autoload-dev, psr-4, description, extra, laravel, dont-discover, license, minimum-stability (+5 more)
 
 ### Community 2 - "User"
-Cohesion: 0.11
-Nodes (8): User, BiCheckPolicy, DeveloperPpjbPolicy, Filament\Models\Contracts\FilamentUser, Illuminate\Database\Eloquent\Attributes\Hidden, Illuminate\Foundation\Auth\User, Illuminate\Notifications\Notifiable, Spatie\Permission\Traits\HasRoles
+Cohesion: 0.13
+Nodes (5): User, CaseNotePolicy, ProjectPolicy, UnitPolicy, Illuminate\Foundation\Auth\User
 
 ### Community 3 - "Master Build Pack - Database Oasis"
 Cohesion: 0.14
 Nodes (30): AGENTS.md - Laravel Boost + Graphify Guidelines, .ai/rules Project Rules, Code Quality Toolchain (Pint, PHPStan, PHPUnit), Graphify Knowledge Graph Workflow, Laravel Boost MCP Tools, CLAUDE.md - Laravel Boost Guidelines, compose.yaml app service (Laravel app), compose.yaml postgres service (PostgreSQL 17) (+22 more)
-
-### Community 4 - "Illuminate\Database\Migrations\Migration"
-Cohesion: 0.05
-Nodes (3): Illuminate\Database\Migrations\Migration, Illuminate\Database\Schema\Blueprint, Illuminate\Support\Facades\Schema
 
 ### Community 5 - "scripts"
 Cohesion: 0.14
@@ -324,13 +326,13 @@ Nodes (14): scripts, analyse, format, post-create-project-cmd, post-update-cmd, 
 Cohesion: 0.09
 Nodes (19): AppServiceProvider, AdminPanelProvider, Filament\Http\Middleware\Authenticate, Filament\Http\Middleware\AuthenticateSession, Filament\Http\Middleware\DisableBladeIconComponents, Filament\Http\Middleware\DispatchServingFilamentEvent, Filament\Pages\Dashboard, Filament\Panel (+11 more)
 
-### Community 7 - "Filament\Tables\Table"
-Cohesion: 0.10
-Nodes (18): AkadRecordsTable, BankProcessesTable, BiChecksTable, DeveloperPpjbsTable, DocumentSubmissionsTable, SalesCasesTable, UnitsTable, Filament\Actions\BulkActionGroup (+10 more)
+### Community 7 - "BranchResource.php"
+Cohesion: 0.32
+Nodes (8): Filament\Actions\BulkActionGroup, Filament\Actions\DeleteAction, Filament\Actions\DeleteBulkAction, Filament\Actions\EditAction, Filament\Forms\Components\Toggle, Filament\Tables\Columns\IconColumn, Filament\Tables\Filters\SelectFilter, Filament\Tables\Filters\TernaryFilter
 
 ### Community 8 - "Filament\Actions\Action"
 Cohesion: 0.08
-Nodes (13): CaseWorkflowActions, Action, Action, WorkspaceActions, BankProcessesRelationManager, Action, Action, PsjbsRelationManager (+5 more)
+Nodes (10): CaseWorkflowActions, Action, Action, WorkspaceActions, BankProcessesRelationManager, Action, Action, PsjbsRelationManager (+2 more)
 
 ### Community 9 - "Testing Best Practices (skill)"
 Cohesion: 0.21
@@ -345,44 +347,48 @@ Cohesion: 0.20
 Nodes (10): Migration Best Practices (Laravel rules), composer audit dependency audit, Convention and Style Best Practices (Laravel rules), php artisan test --compact step, CI quality job (ubuntu-latest, PHP 8.4, Node 22), CI workflow (.github/workflows/ci.yml), composer audit step (--locked), migrate / migrate:rollback / migrate verification steps (+2 more)
 
 ### Community 12 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
-Cohesion: 0.06
-Nodes (7): BankProcess, self, BastRecord, DocumentSubmission, BankProcessFactory, static, Illuminate\Database\Eloquent\Relations\BelongsTo
+Cohesion: 0.05
+Nodes (7): AkadTarget, BankProcess, self, DocumentSubmission, BankProcessFactory, static, Illuminate\Database\Eloquent\Relations\BelongsTo
 
 ### Community 13 - "Illuminate\Database\Eloquent\Builder"
-Cohesion: 0.10
-Nodes (15): AkadRecordResource, BankProcessResource, BankProcessForm, BankResource, BiCheckResource, BranchResource, DeveloperPpjbResource, DocumentSubmissionResource (+7 more)
+Cohesion: 0.08
+Nodes (17): AkadTargetResource, AkadTargetsTable, BankProcessesTable, BankResource, BiCheckResource, BiChecksTable, BranchResource, ConsumerResource (+9 more)
 
 ### Community 14 - "SalesCase"
-Cohesion: 0.08
-Nodes (4): BiCheckForm, PsjbForm, SalesCase, Illuminate\Database\Eloquent\Relations\HasOne
+Cohesion: 0.06
+Nodes (9): BiCheckForm, PsjbForm, SalesCase, SalesCaseTimelineService, Filament\Infolists\Components\TextEntry, Filament\Schemas\Components\View, Illuminate\Database\Eloquent\Relations\HasOne, Illuminate\Support\Collection (+1 more)
 
-### Community 15 - "Filament\Schemas\Schema"
-Cohesion: 0.10
-Nodes (10): AkadRecordForm, DeveloperPpjbForm, DocumentSubmissionForm, SalesCaseInfolist, UnitForm, UnitInfolist, UnitResource, Filament\Infolists\Components\TextEntry (+2 more)
+### Community 15 - "UnitResource.php"
+Cohesion: 0.15
+Nodes (7): CreateUnit, ViewUnit, UnitForm, UnitInfolist, UnitsTable, UnitResource, Filament\Resources\Pages\ViewRecord
 
 ### Community 16 - "Filament\Resources\Pages\CreateRecord"
-Cohesion: 0.11
-Nodes (10): CreateAkadRecord, CreateBankProcess, CreateBiCheck, CreateConsumer, CreateDocumentSubmission, CreateSalesCase, CreateUnit, CreateUser (+2 more)
+Cohesion: 0.09
+Nodes (11): CreateAkadRecord, CreateAkadTarget, CreateBiCheck, CreateConsumer, CreateDeveloperPpjb, CreateDocumentSubmission, CreateProject, CreatePsjb (+3 more)
 
 ### Community 17 - "Filament\Resources\Pages\ListRecords"
-Cohesion: 0.13
-Nodes (9): ListAkadRecords, ListBankProcesses, ListBiChecks, ListConsumers, ListSalesCases, ListUnits, ListUsers, Filament\Actions\CreateAction (+1 more)
+Cohesion: 0.10
+Nodes (12): ListAkadRecords, ListAkadTargets, ListBiChecks, ListConsumers, ListDeveloperPpjbs, ListDocumentSubmissions, ListProjects, ListPsjbs (+4 more)
 
 ### Community 18 - "Convention Detection Checklist"
 Cohesion: 0.20
 Nodes (11): Convention Detection Checklist, 49 Laravel convention dimensions, Advanced Query Best Practices, Correlated subquery pattern, Eloquent Best Practices, Attribute casts, Global scope tradeoff, Local query scopes (+3 more)
 
-### Community 19 - "ConsumerResource.php"
+### Community 19 - "Filament\Resources\Pages\EditRecord"
+Cohesion: 0.10
+Nodes (9): EditAkadTarget, EditConsumer, EditProject, EditSalesCase, EditUnit, Filament\Actions\ForceDeleteAction, Filament\Actions\RestoreAction, Filament\Actions\ViewAction (+1 more)
+
+### Community 20 - "UserRole.php"
 Cohesion: 0.11
-Nodes (10): ConsumerResource, EditConsumer, ConsumerForm, ConsumersTable, EditUnit, EditUser, Filament\Actions\ForceDeleteAction, Filament\Actions\RestoreAction (+2 more)
+Nodes (13): CreateSalesCaseAction, MarkSalesCaseMundurAction, Filament\Actions\Testing\TestAction, Filament\Auth\Pages\Login, Filament\Facades\Filament, Illuminate\Auth\Access\AuthorizationException, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase (+5 more)
 
-### Community 20 - "Unit"
-Cohesion: 0.06
-Nodes (46): AdvanceCashCaseToPpjbAction, CancelDeveloperPpjbAction, CancelPsjbAction, CancelSalesCaseAction, CloseSalesCaseAction, CreateAkadAction, CreateBastAction, CreateCaseNoteAction (+38 more)
+### Community 21 - "PhaseSixWorkspaceTest"
+Cohesion: 0.10
+Nodes (5): SalesCaseResource, SalesCaseInfolist, Filament\Actions\ActionGroup, PhaseSixWorkspaceTest, FinancingType
 
-### Community 22 - "SalesCaseResource.php"
-Cohesion: 0.18
-Nodes (16): AkadRelationManager, BastRelationManager, BiChecksRelationManager, CaseNotesRelationManager, DocumentSubmissionsRelationManager, Filament\Forms\Components\DatePicker, Filament\Forms\Components\Select, Filament\Forms\Components\Textarea (+8 more)
+### Community 22 - "Filament\Tables\Table"
+Cohesion: 0.12
+Nodes (16): BastRecordsTable, SalesCasesRelationManager, ConsumersTable, AkadRelationManager, BastRelationManager, BiChecksRelationManager, CaseNotesRelationManager, DocumentSubmissionsRelationManager (+8 more)
 
 ### Community 23 - "command"
 Cohesion: 0.20
@@ -396,9 +402,9 @@ Nodes (8): Atomic locks for race conditions, Caching Best Practices, Queue and J
 Cohesion: 0.25
 Nodes (9): Configuration Best Practices, Encrypted environment files, env() only in config files, Error Handling Best Practices, Exception report()/render() methods, Security Best Practices, CSRF protection in Blade forms, Mass assignment protection via $fillable (+1 more)
 
-### Community 26 - "TimelineItem"
-Cohesion: 0.19
-Nodes (4): SalesCaseTimelineService, TimelineItem, Carbon\CarbonInterface, Illuminate\Support\Collection
+### Community 26 - "Carbon\CarbonInterface"
+Cohesion: 0.26
+Nodes (3): CarbonImmutable, TimelineItem, Carbon\CarbonInterface
 
 ### Community 27 - "DatabaseSeeder.php"
 Cohesion: 0.28
@@ -420,9 +426,9 @@ Nodes (6): Blade and View Best Practices, Blade components with attribute bags, 
 Cohesion: 0.33
 Nodes (6): Routing and Controller Best Practices, Resource controller organization, Implicit route model binding, Authorization of protected actions, Validation and Forms Best Practices, Form Request validation boundary
 
-### Community 32 - "Illuminate\Database\Eloquent\Factories\HasFactory"
-Cohesion: 0.13
-Nodes (5): AkadRecord, CaseNote, AkadRecordFactory, CaseNoteFactory, Illuminate\Database\Eloquent\Factories\HasFactory
+### Community 32 - "AkadRecord"
+Cohesion: 0.08
+Nodes (10): AkadRecord, BastRecord, CaseNote, Model, BastRecordFactory, Filament\Models\Contracts\FilamentUser, Illuminate\Database\Eloquent\Attributes\Hidden, Illuminate\Database\Eloquent\Concerns\HasUlids (+2 more)
 
 ### Community 33 - "infer-conventions skill"
 Cohesion: 0.50
@@ -484,53 +490,101 @@ Nodes (3): Controllers focused on HTTP concerns, Validate and store uploads safe
 Cohesion: 0.12
 Nodes (16): Advanced Query Best Practices (rule), Architecture Best Practices (rule), Blade and View Best Practices (rule), Caching Best Practices (rule), Collection Best Practices (rule), Configuration Best Practices (rule), Database Performance Best Practices (rule), Eloquent Best Practices (rule) (+8 more)
 
-### Community 144 - "Psjb"
+### Community 144 - "PhaseFiveWorkflowTest.php"
 Cohesion: 0.17
-Nodes (4): Model, Psjb, static, Illuminate\Database\Eloquent\Concerns\HasUlids
+Nodes (16): AdvanceCashCaseToPpjbAction, CancelDeveloperPpjbAction, CancelPsjbAction, CancelSalesCaseAction, SalesCaseStatus, CreateAkadAction, CreateBastAction, CreateCaseNoteAction (+8 more)
 
 ### Community 147 - "ProjectResource.php"
-Cohesion: 0.19
-Nodes (4): EditProject, ProjectResource, ProjectForm, ProjectsTable
+Cohesion: 0.24
+Nodes (3): ProjectResource, ProjectForm, ProjectsTable
 
-### Community 168 - "Illuminate\Support\Str"
+### Community 158 - "SalesCaseStatus.php"
+Cohesion: 0.16
+Nodes (9): SalesCaseStatus, ReissuePsjbAction, isBeyond(), order(), self, Illuminate\Database\UniqueConstraintViolationException, Illuminate\Support\Facades\DB, Illuminate\Support\Facades\Gate (+1 more)
+
+### Community 164 - "Illuminate\Database\Eloquent\Factories\HasFactory"
+Cohesion: 0.14
+Nodes (4): Illuminate\Database\Eloquent\Attributes\Fillable, Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Database\Eloquent\Relations\HasMany, Illuminate\Database\Eloquent\SoftDeletes
+
+### Community 168 - "Illuminate\Database\Eloquent\Factories\Factory"
+Cohesion: 0.05
+Nodes (24): AkadTargetFactory, BankFactory, static, BiCheckFactory, BiCheckResult, static, BranchFactory, static (+16 more)
+
+### Community 205 - "PhaseSevenMonitoringTest"
+Cohesion: 0.17
+Nodes (5): BastStatus, PhaseSevenMonitoringTest, BankResponseType, FinancingType, UserRole
+
+### Community 206 - "Filament\Schemas\Schema"
+Cohesion: 0.14
+Nodes (12): AkadTargetForm, BankProcessForm, BastRecordForm, UserForm, Filament\Forms\Components\DatePicker, Filament\Forms\Components\Select, Filament\Forms\Components\TextInput, Filament\Schemas\Components\Section (+4 more)
+
+### Community 207 - "UserResource"
+Cohesion: 0.24
+Nodes (4): CreateUser, EditUser, ListUsers, UserResource
+
+### Community 209 - "MonitoringScope"
 Cohesion: 0.20
-Nodes (5): static, UserFactory, Illuminate\Support\Facades\Hash, Illuminate\Support\Str, Pdo\Mysql
+Nodes (5): MonitoringPeriod, MonitoringScope, MonitoringService, CarbonImmutable, Carbon\CarbonImmutable
 
-### Community 205 - "SalesCaseResource"
-Cohesion: 0.22
-Nodes (3): SalesCasesRelationManager, SalesCaseResource, SalesCasesRelationManager
-
-### Community 206 - "BastRecordResource.php"
-Cohesion: 0.24
-Nodes (3): BastRecordResource, BastRecordForm, BastRecordsTable
-
-### Community 207 - "UserResource.php"
-Cohesion: 0.24
-Nodes (3): UserForm, UsersTable, UserResource
-
-### Community 209 - "PsjbStatus"
-Cohesion: 0.31
-Nodes (3): PsjbStatus, static, PsjbFactory
-
-### Community 210 - "Illuminate\Database\Eloquent\Factories\Factory"
-Cohesion: 0.28
-Nodes (4): BankFactory, static, DocumentSubmissionFactory, Illuminate\Database\Eloquent\Factories\Factory
+### Community 210 - "Sp3kMonitoring.php"
+Cohesion: 0.13
+Nodes (9): AkadMonitoring, Monitoring, Sp3kMonitoring, Filament\Pages\Page, Filament\Tables\Concerns\InteractsWithTable, Filament\Tables\Contracts\HasTable, KendalaCategory, Livewire\Attributes\Url (+1 more)
 
 ### Community 211 - "ManageBranches"
-Cohesion: 0.32
+Cohesion: 0.28
 Nodes (3): ManageBanks, ManageBranches, Filament\Resources\Pages\ManageRecords
 
-### Community 232 - "Branch"
-Cohesion: 0.06
-Nodes (9): SalesCaseForm, Branch, Consumer, Project, PhaseFourFilamentTest, PhaseOneMasterDataTest, PhaseTwoBranchIsolationTest, PhaseTwoCaseWorkflowTest (+1 more)
-
-### Community 256 - "BiCheckResult"
+### Community 213 - "PhaseSevenMonitoringTest.php"
 Cohesion: 0.17
-Nodes (7): BiCheckResult, BiCheck, self, BiCheckFactory, static, Illuminate\Database\Eloquent\SoftDeletes, PhaseThreeBiCheckTest
+Nodes (5): UpsertAkadReadinessAction, AkadReadinessFactory, Filament\Support\Contracts\HasLabel, Illuminate\Support\Carbon, Illuminate\Validation\Rule
+
+### Community 214 - "BastRecordResource"
+Cohesion: 0.28
+Nodes (3): BastRecordResource, CreateBastRecord, ListBastRecords
+
+### Community 218 - "Branch"
+Cohesion: 0.25
+Nodes (3): Branch, ProjectFactory, PhaseTwoSalesCaseTest
+
+### Community 224 - "Monitoring Definitions"
+Cohesion: 0.17
+Nodes (11): Authorization, BAST Monthly, Monitoring Definitions, Monitoring Period, Readiness Data Incomplete, Realisasi Akad, SP3K Aging, SP3K Stock (+3 more)
+
+### Community 225 - "AkadRecordResource.php"
+Cohesion: 0.24
+Nodes (3): AkadRecordResource, AkadRecordForm, AkadRecordsTable
+
+### Community 226 - "DeveloperPpjbResource.php"
+Cohesion: 0.24
+Nodes (3): DeveloperPpjbResource, DeveloperPpjbForm, DeveloperPpjbsTable
+
+### Community 228 - "DocumentSubmissionResource.php"
+Cohesion: 0.24
+Nodes (3): DocumentSubmissionResource, DocumentSubmissionForm, DocumentSubmissionsTable
+
+### Community 232 - "Project"
+Cohesion: 0.09
+Nodes (4): Project, Unit, UnitFactory, PhaseOneMasterDataTest
+
+### Community 233 - "CloseSalesCaseAction"
+Cohesion: 0.31
+Nodes (4): CloseSalesCaseAction, SalesCaseStatus, MarkSalesCaseRejectedAction, SalesCaseStatus
+
+### Community 240 - "BankProcessResource"
+Cohesion: 0.28
+Nodes (3): BankProcessResource, CreateBankProcess, ListBankProcesses
+
+### Community 256 - "BiCheck"
+Cohesion: 0.25
+Nodes (4): BiCheck, self, PhaseThreeBiCheckTest, BiCheckResult
 
 ### Community 267 - "Bank"
-Cohesion: 0.26
-Nodes (3): BankResponseType, Bank, PhaseFourBankWorkflowTest
+Cohesion: 0.29
+Nodes (4): Bank, PhaseFourBankWorkflowTest, BankResponseType, FinancingType
+
+### Community 280 - "Consumer"
+Cohesion: 0.15
+Nodes (4): SalesCaseForm, Consumer, SalesCaseStatus, PhaseTwoConsumerTest
 
 ### Community 281 - "Testing Best Practices skill"
 Cohesion: 0.24
@@ -569,24 +623,24 @@ Cohesion: 0.67
 Nodes (3): dev, Composer\\Config::disableProcessTimeout, @php artisan dev
 
 ## Knowledge Gaps
-- **148 isolated node(s):** `php`, `$schema`, `Controller`, `$schema`, `name` (+143 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 475 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **174 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **158 isolated node(s):** `php`, `$schema`, `Controller`, `$schema`, `name` (+153 more)
+  These have ≤1 connection - possible missing edges or undocumented components.
+- **168 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `BiCheckResult`, `PhaseFiveWorkflowTest`, `AdminPanelProvider.php`, `Filament\Tables\Table`, `Filament\Actions\Action`, `Bank`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Illuminate\Database\Eloquent\Builder`, `SalesCase`, `Filament\Schemas\Schema`, `Psjb`, `Filament\Resources\Pages\CreateRecord`, `ConsumerResource.php`, `Unit`, `ProjectResource.php`, `DeveloperPpjb`, `SalesCaseResource.php`, `PhaseSixWorkspaceTest`, `PhaseTwoConsumerTest`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `Illuminate\Support\Str`, `SalesCaseResource`, `BastRecordResource.php`, `UserResource.php`, `PhaseZeroFoundationTest`, `PsjbStatus`, `Illuminate\Database\Eloquent\Factories\Factory`, `.createAction`, `BastStatus`, `CreateBastRecord.php`, `CreateDeveloperPpjb.php`, `CreateProject`, `CreatePsjb.php`, `BankPolicy`, `BranchPolicy`, `ConsumerPolicy`, `ProjectPolicy`, `UserPolicy`, `SalesCasePolicy`, `UnitPolicy`, `AkadRecordPolicy.php`, `BankProcessPolicy.php`, `BastRecordPolicy.php`, `Branch`, `CaseNotePolicy.php`, `DocumentSubmissionPolicy.php`, `PsjbPolicy.php`, `.current`, `PhaseThreePsjbTest`?**
-  _High betweenness centrality (0.198) - this node is a cross-community bridge._
-- **Why does `SalesCase` connect `SalesCase` to `BiCheckResult`, `PhaseFiveWorkflowTest`, `Filament\Actions\Action`, `Bank`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Filament\Schemas\Schema`, `Psjb`, `Unit`, `PhaseSixWorkspaceTest`, `DeveloperPpjb`, `SalesCaseResource.php`, `TimelineItem`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `Illuminate\Database\Eloquent\Relations\HasMany`, `BastRecordResource.php`, `PsjbStatus`, `Illuminate\Database\Eloquent\Factories\Factory`, `SalesCasePolicy`, `Branch`, `PhaseThreePsjbTest`?**
-  _High betweenness centrality (0.072) - this node is a cross-community bridge._
-- **Why does `UserRole` connect `Unit` to `User`, `SalesCasePolicy`, `AkadRecordPolicy.php`, `AdminPanelProvider.php`, `BankProcessPolicy.php`, `BastRecordPolicy.php`, `CaseNotePolicy.php`, `DocumentSubmissionPolicy.php`, `PsjbPolicy.php`, `DatabaseSeeder.php`, `Branch`, `BankPolicy`, `BranchPolicy`, `ConsumerPolicy`, `ProjectPolicy`, `UserPolicy`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `User` connect `User` to `BiCheck`, `PhaseFiveWorkflowTest`, `AdminPanelProvider.php`, `BranchResource.php`, `Filament\Actions\Action`, `Bank`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Illuminate\Database\Eloquent\Builder`, `SalesCase`, `UnitResource.php`, `Filament\Resources\Pages\CreateRecord`, `PhaseFiveWorkflowTest.php`, `Filament\Resources\Pages\EditRecord`, `UserRole.php`, `ProjectResource.php`, `DeveloperPpjb`, `Filament\Tables\Table`, `PhaseSixWorkspaceTest`, `Consumer`, `SalesCaseStatus.php`, `AkadRecord`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `Illuminate\Database\Eloquent\Factories\Factory`, `PhaseSevenMonitoringTest`, `Filament\Schemas\Schema`, `UserResource`, `PhaseZeroFoundationTest`, `MonitoringScope`, `Sp3kMonitoring.php`, `.createAction`, `PhaseSevenMonitoringTest.php`, `BastRecordResource`, `PhaseTwoCaseWorkflowTest`, `PhaseTwoBranchIsolationTest`, `AkadReadiness`, `Branch`, `BankPolicy`, `BranchPolicy`, `ConsumerPolicy`, `PhaseSevenFilamentTest`, `UserPolicy`, `AkadRecordResource.php`, `DeveloperPpjbResource.php`, `SalesCasePolicy`, `DocumentSubmissionResource.php`, `AkadRecordPolicy.php`, `BankProcessPolicy.php`, `BastRecordPolicy.php`, `Project`, `CloseSalesCaseAction`, `DocumentSubmissionPolicy.php`, `PsjbPolicy.php`, `.current`, `BankProcessResource`, `AkadTargetPolicy`, `BiCheckPolicy.php`, `DeveloperPpjbPolicy.php`, `Psjb`?**
+  _High betweenness centrality (0.296) - this node is a cross-community bridge._
+- **Why does `SalesCase` connect `SalesCase` to `BiCheck`, `PhaseFiveWorkflowTest`, `Filament\Actions\Action`, `Bank`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `PhaseFiveWorkflowTest.php`, `UserRole.php`, `PhaseSixWorkspaceTest`, `DeveloperPpjb`, `Filament\Tables\Table`, `Carbon\CarbonInterface`, `SalesCaseStatus.php`, `AkadRecord`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `Illuminate\Database\Eloquent\Factories\Factory`, `PhaseSevenMonitoringTest`, `Filament\Schemas\Schema`, `MonitoringScope`, `Sp3kMonitoring.php`, `PhaseSevenMonitoringTest.php`, `PhaseTwoCaseWorkflowTest`, `PhaseTwoBranchIsolationTest`, `AkadReadiness`, `Branch`, `PhaseSevenFilamentTest`, `AkadRecordResource.php`, `DeveloperPpjbResource.php`, `SalesCasePolicy`, `CloseSalesCaseAction`, `Psjb`?**
+  _High betweenness centrality (0.066) - this node is a cross-community bridge._
+- **Why does `Branch` connect `Branch` to `BiCheck`, `PhaseFiveWorkflowTest`, `BranchResource.php`, `Bank`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Illuminate\Database\Eloquent\Builder`, `PhaseFiveWorkflowTest.php`, `UserRole.php`, `PhaseSixWorkspaceTest`, `SalesCaseStatus.php`, `AkadRecord`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `Illuminate\Database\Eloquent\Factories\Factory`, `PhaseSevenMonitoringTest`, `Filament\Schemas\Schema`, `MonitoringScope`, `Sp3kMonitoring.php`, `PhaseSevenMonitoringTest.php`, `PhaseTwoCaseWorkflowTest`, `PhaseTwoBranchIsolationTest`, `BranchPolicy`, `PhaseSevenFilamentTest`, `Project`, `Psjb`?**
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
 - **What connects `php`, `$schema`, `Controller` to the rest of the system?**
-  _148 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _158 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `composer.json` be split into smaller, more focused modules?**
   _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
 - **Should `User` be split into smaller, more focused modules?**
-  _Cohesion score 0.11 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.12681159420289856 - nodes in this community are weakly interconnected._
 - **Should `Master Build Pack - Database Oasis` be split into smaller, more focused modules?**
   _Cohesion score 0.1425287356321839 - nodes in this community are weakly interconnected._

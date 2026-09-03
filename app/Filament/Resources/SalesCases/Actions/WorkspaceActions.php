@@ -14,13 +14,17 @@ use App\Actions\RecordBankResponseAction;
 use App\Actions\RecordBiCheckAction;
 use App\Actions\ReissueDeveloperPpjbAction;
 use App\Actions\ReissuePsjbAction;
+use App\Actions\UpsertAkadReadinessAction;
 use App\BankResponseType;
 use App\BiCheckResult;
+use App\DpStatus;
 use App\FinancingType;
 use App\Models\Bank;
 use App\Models\DocumentSubmission;
 use App\Models\SalesCase;
 use App\Models\User;
+use App\ReadinessIssueStatus;
+use App\ReadinessUtilityStatus;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use Filament\Actions\Action;
@@ -30,7 +34,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Facades\App;
 
 /**
  * Workspace quick actions. Pure orchestration: every action invokes an
@@ -81,6 +84,7 @@ class WorkspaceActions
             'cancelPpjbDeveloper' => self::cancelPpjbDeveloper(),
             'createAkad' => self::createAkad(),
             'createBast' => self::createBast(),
+            'updateReadiness' => self::updateReadiness(),
             'moveCase' => CaseWorkflowActions::move()->visible(
                 fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active && ! $case->akad()->exists() && self::canUpdate($case)
             ),
@@ -111,7 +115,7 @@ class WorkspaceActions
                 Textarea::make('description')->label('Keterangan')->maxLength(1000),
             ])
             ->action(function (array $data, SalesCase $case): void {
-                App::call(RecordBiCheckAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
+                app(RecordBiCheckAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
                 self::notify('BI check dicatat.');
             });
     }
@@ -128,7 +132,7 @@ class WorkspaceActions
                 && ($case->latestBiCheck()->first()?->result === BiCheckResult::Clear))
             ->form(self::psjbFields())
             ->action(function (array $data, SalesCase $case): void {
-                App::call(CreatePsjbAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
+                app(CreatePsjbAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
                 self::notify('PSJB dibuat.');
             });
     }
@@ -144,7 +148,7 @@ class WorkspaceActions
                 && $case->akad()->doesntExist())
             ->form(self::psjbFields())
             ->action(function (array $data, SalesCase $case): void {
-                App::call(ReissuePsjbAction::class)->handle(self::user(), $case, $data);
+                app(ReissuePsjbAction::class)->handle(self::user(), $case, $data);
                 self::notify('PSJB di-reissue.');
             });
     }
@@ -162,7 +166,7 @@ class WorkspaceActions
                 && ! $case->current_stage->isBeyond(SalesCaseStage::Pemberkasan)
                 && $case->akad()->doesntExist())
             ->action(function (SalesCase $case): void {
-                App::call(CancelPsjbAction::class)->handle(self::user(), $case->activePsjb);
+                app(CancelPsjbAction::class)->handle(self::user(), $case->activePsjb);
                 self::notify('PSJB dibatalkan.');
             });
     }
@@ -187,7 +191,7 @@ class WorkspaceActions
                 Textarea::make('notes')->label('Catatan'),
             ])
             ->action(function (array $data, SalesCase $case): void {
-                App::call(CreateDocumentSubmissionAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
+                app(CreateDocumentSubmissionAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
                 self::notify('Pemberkasan dibuat.');
             });
     }
@@ -220,7 +224,7 @@ class WorkspaceActions
             ])
             ->action(function (array $data, SalesCase $case): void {
                 $submission = DocumentSubmission::findOrFail($data['document_submission_id']);
-                App::call(RecordBankResponseAction::class)->handle(self::user(), [
+                app(RecordBankResponseAction::class)->handle(self::user(), [
                     'sales_case_id' => $case->id,
                     'bank_id' => $submission->bank_id,
                     ...$data,
@@ -241,7 +245,7 @@ class WorkspaceActions
                 && $case->current_stage === SalesCaseStage::Pemberkasan
                 && $case->activePsjb()->exists())
             ->action(function (SalesCase $case): void {
-                App::call(AdvanceCashCaseToPpjbAction::class)->handle(self::user(), $case);
+                app(AdvanceCashCaseToPpjbAction::class)->handle(self::user(), $case);
                 self::notify('CASH case maju ke PPJB Developer.');
             });
     }
@@ -260,7 +264,7 @@ class WorkspaceActions
                     : $case->currentApprovedBankProcess()->exists()))
             ->form(self::ppjbFields())
             ->action(function (array $data, SalesCase $case): void {
-                App::call(CreateDeveloperPpjbAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
+                app(CreateDeveloperPpjbAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
                 self::notify('PPJB Developer dibuat.');
             });
     }
@@ -276,7 +280,7 @@ class WorkspaceActions
                 && $case->akad()->doesntExist())
             ->form(self::ppjbFields())
             ->action(function (array $data, SalesCase $case): void {
-                App::call(ReissueDeveloperPpjbAction::class)->handle(self::user(), $case, $data);
+                app(ReissueDeveloperPpjbAction::class)->handle(self::user(), $case, $data);
                 self::notify('PPJB Developer di-reissue.');
             });
     }
@@ -292,7 +296,7 @@ class WorkspaceActions
                 && $case->activeDeveloperPpjb()->exists()
                 && $case->akad()->doesntExist())
             ->action(function (SalesCase $case): void {
-                App::call(CancelDeveloperPpjbAction::class)->handle(self::user(), $case->activeDeveloperPpjb);
+                app(CancelDeveloperPpjbAction::class)->handle(self::user(), $case->activeDeveloperPpjb);
                 self::notify('PPJB Developer dibatalkan.');
             });
     }
@@ -314,7 +318,7 @@ class WorkspaceActions
             ])
             ->action(function (array $data, SalesCase $case): void {
                 $data['developer_ppjb_id'] = $case->activeDeveloperPpjb()->firstOrFail()->id;
-                App::call(CreateAkadAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
+                app(CreateAkadAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
                 self::notify('Akad dibuat. Unit menjadi TERJUAL.');
             });
     }
@@ -335,9 +339,52 @@ class WorkspaceActions
             ])
             ->action(function (array $data, SalesCase $case): void {
                 $data['akad_id'] = $case->akad()->firstOrFail()->id;
-                App::call(CreateBastAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
+                app(CreateBastAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
                 self::notify('BAST dibuat. Sales Case COMPLETED.');
             });
+    }
+
+    private static function updateReadiness(): Action
+    {
+        return Action::make('updateReadiness')
+            ->label('Update Akad Readiness')
+            ->icon(Heroicon::OutlinedClipboardDocumentCheck)
+            ->visible(fn (SalesCase $case): bool => $case->akad()->doesntExist() && self::canUpdateReadiness($case))
+            ->fillForm(fn (SalesCase $case): array => $case->akadReadiness?->only([
+                'building_progress',
+                'building_status',
+                'dp_status',
+                'electricity_status',
+                'water_status',
+                'consumer_status',
+                'consumer_note',
+                'notes',
+            ]) ?? [
+                'building_status' => ReadinessIssueStatus::Unknown,
+                'dp_status' => DpStatus::Unknown,
+                'electricity_status' => ReadinessUtilityStatus::Unknown,
+                'water_status' => ReadinessUtilityStatus::Unknown,
+                'consumer_status' => ReadinessIssueStatus::Unknown,
+            ])
+            ->schema([
+                TextInput::make('building_progress')->label('Progress Bangunan')->numeric()->minValue(0)->maxValue(100)->suffix('%'),
+                Select::make('building_status')->label('Status Bangunan')->options(ReadinessIssueStatus::class)->required(),
+                Select::make('dp_status')->label('Status DP')->options(DpStatus::class)->required(),
+                Select::make('electricity_status')->label('Listrik')->options(ReadinessUtilityStatus::class)->required(),
+                Select::make('water_status')->label('Air')->options(ReadinessUtilityStatus::class)->required(),
+                Select::make('consumer_status')->label('Kesiapan Konsumen')->options(ReadinessIssueStatus::class)->required(),
+                Textarea::make('consumer_note')->label('Catatan Konsumen')->maxLength(2000),
+                Textarea::make('notes')->label('Catatan')->maxLength(5000),
+            ])
+            ->action(function (array $data, SalesCase $case): void {
+                app(UpsertAkadReadinessAction::class)->handle(self::user(), $case, $data);
+                self::notify('Akad readiness diperbarui.');
+            });
+    }
+
+    private static function canUpdateReadiness(SalesCase $case): bool
+    {
+        return User::current()?->can('update', $case) ?? false;
     }
 
     private static function canUpdate(SalesCase $case): bool

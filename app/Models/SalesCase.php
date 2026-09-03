@@ -149,6 +149,12 @@ class SalesCase extends Model
         return $this->hasOne(BastRecord::class);
     }
 
+    /** @return HasOne<AkadReadiness, $this> */
+    public function akadReadiness(): HasOne
+    {
+        return $this->hasOne(AkadReadiness::class);
+    }
+
     /** @return HasMany<CaseNote, $this> */
     public function caseNotes(): HasMany
     {

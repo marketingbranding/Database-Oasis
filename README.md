@@ -104,3 +104,7 @@ Phase 5 does not contain Monitoring/KPI, Akad readiness/kendala, legacy migratio
 Phase 6 is the presentation/orchestration layer on top of Phases 0-5. It adds: a Sales Case workspace with header summary, process stepper, and unified timeline; case-scoped append-only operational notes; document-number-aware global search that resolves to (possibly multiple) Sales Cases; Consumer and Unit case-history relation managers; and a centralized `SalesCase::daysInCurrentStage()` aging calculation. All quick actions still call existing Phase 2-5 domain actions; no domain rules are duplicated in UI code.
 
 Phase 6 does not contain KPI/Monitoring, Akad readiness/kendala, legacy migration, Google Sheets sync, or document generation.
+
+Phase 7 is the read/query monitoring layer: Akad targets, Akad realization with locked M1–M4 buckets, SP3K stock/aging, Akad readiness snapshots, kendala categories, and BAST monthly metrics. All KPIs derive through `MonitoringService` and are documented in `docs/MONITORING_DEFINITIONS.md`. Monitoring never mutates approved transactional workflow.
+
+Phase 7 does not contain legacy migration engine, Google Sheets sync, Oasis CRM integration, attachments, document generation, notification automation, or advanced BI.
