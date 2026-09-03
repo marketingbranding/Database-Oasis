@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\LegacyMigration\AuditExceptionCode;
 use App\LegacyMigration\JeparaLegacyAuditor;
+use App\LegacyMigration\LegacyNormalizer;
 use App\LegacyMigration\LegacySourceReader;
 use App\Models\BiCheck;
 use App\Models\Branch;
@@ -381,6 +382,91 @@ class PhaseEightALegacyAuditTest extends TestCase
         } finally {
             @unlink($sentinel);
         }
+    }
+
+    public function test_financing_contract_requires_header_and_never_defaults_blank_or_unknown_to_kpr(): void
+    {
+        $rows = array_map(fn (string $line): array => str_getcsv($line, escape: ''), file($this->source.'/data_konsumen.csv', FILE_IGNORE_NEW_LINES));
+        $rows[0][] = 'status_cash';
+        foreach ($rows as $index => &$row) {
+            if ($index === 0) {
+                continue;
+            }
+            $row[] = match ($row[0]) {
+                'K-001' => '',
+                'K-002' => 'MUNGKIN',
+                'K-003' => 'TIDAK',
+                'K-006' => 'YA',
+                default => 'TIDAK',
+            };
+            // Force real-workbook financing contract rather than fixture's
+            // canonical financing column.
+            $row[7] = '';
+        }
+        unset($row);
+        $this->write('data_konsumen.csv', $rows);
+
+        $report = $this->app->make(JeparaLegacyAuditor::class)->audit($this->source);
+        $cases = collect($report['sales_cases'])->keyBy('legacy_consumer_id');
+        $codes = collect($report['exceptions'])->pluck('code');
+
+        $this->assertContains(AuditExceptionCode::MissingFinancingStatus->value, $codes);
+        $this->assertContains(AuditExceptionCode::FinancingUnresolved->value, $codes);
+        $this->assertSame('KPR_SUBSIDI', $cases['K-001']['financing']);
+        $this->assertSame('HIGH', $cases['K-001']['financing_confidence']);
+        $this->assertContains('INFERRED_KPR_FROM_LINKED_SUBMISSION_AND_BANK_CHAIN', $cases['K-001']['financing_evidence']);
+        $this->assertSame('KPR_SUBSIDI', $cases['K-003']['financing']);
+        $this->assertSame('EXACT', $cases['K-003']['financing_confidence']);
+        $this->assertSame('CASH', $cases['K-006']['financing']);
+        $this->assertSame('EXACT', $cases['K-006']['financing_confidence']);
+    }
+
+    public function test_required_column_contract_reports_missing_status_cash_header(): void
+    {
+        $report = $this->app->make(JeparaLegacyAuditor::class)->audit($this->source);
+
+        $missing = collect($report['exceptions'])
+            ->where('code', AuditExceptionCode::MissingRequiredColumn->value)
+            ->first(fn (array $exception): bool => str_contains($exception['message'], 'status_cash'));
+
+        $this->assertNotNull($missing);
+    }
+
+    public function test_real_data_normalization_preserves_ambiguous_units_and_unknown_evidence(): void
+    {
+        $normalizer = $this->app->make(LegacyNormalizer::class);
+
+        $this->assertSame('MARISON-PATI|A01', $normalizer->unitFromIdKavling('Marison Pati-A01'));
+        $this->assertTrue($normalizer->hasDeterministicUnitSuffix('Marison Pati-A01'));
+        $this->assertSame('RAW|PROJECT-TANPA-KODE', $normalizer->unitFromIdKavling('Project Tanpa-Kode'));
+        $this->assertFalse($normalizer->hasDeterministicUnitSuffix('Project Tanpa-Kode'));
+        $this->assertSame('CLEAR', $normalizer->statusValue('KOL 1'));
+        $this->assertSame('REVIEW', $normalizer->statusValue('KOL 2'));
+        $this->assertSame('KOL 3', $normalizer->statusValue('KOL 3'));
+    }
+
+    public function test_blank_process_statuses_and_bast_lifecycle_conflicts_are_explicit(): void
+    {
+        file_put_contents($this->source.'/bi_checking.csv', implode("\n", [
+            'legacy_id,hasil,tanggal_bi,catatan',
+            'K-001,,2026-01-06,hasil kosong',
+        ]));
+        file_put_contents($this->source.'/proses_bank.csv', implode("\n", [
+            'legacy_id,bank,hasil,tanggal_response,nomor_sp3k,tanggal_sp3k',
+            'K-001,BCA,,2026-01-18,,',
+        ]));
+        file_put_contents($this->source.'/bast.csv', implode("\n", [
+            'legacy_id,tanggal_bast,nomor_bast,status,catatan',
+            'K-002,2026-02-15,BAST-CONFLICT,COMPLETED,bertentangan dengan pindah kavling',
+        ]));
+
+        $report = $this->app->make(JeparaLegacyAuditor::class)->audit($this->source);
+        $codes = collect($report['exceptions'])->pluck('code');
+
+        $this->assertSame(2, $codes->filter(fn (string $code): bool => $code === AuditExceptionCode::MissingProcessStatus->value)->count());
+        $this->assertContains(AuditExceptionCode::LifecycleConflict->value, $codes);
+        $k002 = collect($report['sales_cases'])->firstWhere('legacy_consumer_id', 'K-002');
+        $this->assertSame('PINDAH_KAVLING', $k002['lifecycle_status']);
     }
 
     public function test_command_rejects_non_jepara_branch(): void

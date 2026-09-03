@@ -4,6 +4,7 @@ namespace App\LegacyMigration;
 
 use DateInterval;
 use DateTimeInterface;
+use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Cell\FormulaCell;
 use OpenSpout\Reader\XLSX\Reader;
 use RuntimeException;
@@ -100,7 +101,7 @@ class LegacySourceReader
                 foreach ($sheet->getRowIterator() as $row) {
                     $rowNumber++;
                     $cells = $row->getCells();
-                    $values = array_map(fn ($cell): mixed => $this->scalar($cell->getValue()), $cells);
+                    $values = array_map(fn ($cell): mixed => $this->scalar($cell), $cells);
 
                     if ($headers === []) {
                         $originalHeaders = array_map(fn (mixed $value): string => trim((string) $value), $values);
@@ -171,13 +172,51 @@ class LegacySourceReader
         return $this->normalizer->header(pathinfo($source, PATHINFO_FILENAME));
     }
 
-    private function scalar(mixed $value): mixed
+    private function scalar(mixed $cell): mixed
     {
+        // The real Jepara workbook is a Google Sheets export: most identity
+        // cells are formulas. Prefer the cached computed value; fall back to
+        // the DUMMYFUNCTION fallback literal; never leak formula text as data.
+        if ($cell instanceof FormulaCell) {
+            $computed = $cell->getComputedValue();
+            if ($computed !== null && ! (is_string($computed) && str_starts_with($computed, '#'))) {
+                return $computed instanceof DateTimeInterface ? $computed->format('Y-m-d') : $computed;
+            }
+
+            return $this->dummyFunctionFallback($cell->getValue());
+        }
+
+        $value = $cell instanceof Cell ? $cell->getValue() : $cell;
+
         return match (true) {
             $value instanceof DateTimeInterface => $value->format('Y-m-d'),
             $value instanceof DateInterval => $value->format('%rP%yY%mM%dDT%hH%iM%sS'),
             is_bool($value), is_int($value), is_float($value), is_string($value), $value === null => $value,
             default => (string) $value,
         };
+    }
+
+    /**
+     * Google Sheets exports wrap cached results as
+     * `=IFERROR(__xludf.DUMMYFUNCTION(...),"cached-literal")`. Extract the
+     * fallback literal; return null when nothing extractable exists.
+     */
+    private function dummyFunctionFallback(string $formula): mixed
+    {
+        if (preg_match('/__xludf\.DUMMYFUNCTION\(.*,\s*("(?:[^"\\\\]|\\\\.)*"|-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)\s*\)\s*$/s', $formula, $matches) !== 1) {
+            return null;
+        }
+
+        $fallback = $matches[1];
+
+        if (str_starts_with($fallback, '"')) {
+            $unescaped = stripcslashes(substr($fallback, 1, -1));
+
+            return $unescaped === '' ? null : $unescaped;
+        }
+
+        return str_contains($fallback, '.') || str_contains(strtoupper($fallback), 'E')
+            ? (float) $fallback
+            : (int) $fallback;
     }
 }

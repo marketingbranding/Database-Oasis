@@ -14,6 +14,8 @@ class LegacyNormalizer
         'legacy_id' => 'legacy_id',
         'id_konsumen' => 'legacy_consumer_id',
         'consumer_id' => 'legacy_consumer_id',
+        'id_kons' => 'legacy_consumer_id',
+        'id_kavling' => 'id_kavling',
         'nik' => 'nik',
         'no_ktp' => 'nik',
         'nomor_ktp' => 'nik',
@@ -80,6 +82,39 @@ class LegacyNormalizer
         'notes' => 'notes',
         'alasan' => 'reason',
         'reason' => 'reason',
+        // Real Jepara workbook (jepara_2026.xlsx) aliases — semantic equivalence:
+        'hasil_slik' => 'result',
+        'tanggal_slik' => 'bi_date',
+        'jenis_respon' => 'result',
+        'id_psjb' => 'psjb_number',
+        'id_ppjb_dev' => 'ppjb_number',
+        'no_ppjb_akad' => 'akad_number',
+        'id_berkas' => 'submission_number',
+        'tanggal_terima_bank' => 'submission_date',
+        'tanggal_ttd_ppjb' => 'ppjb_date',
+        'status_konsumen' => 'lifecycle_status',
+        'kualitas_akad' => 'akad_quality',
+    ];
+
+    /**
+     * Observed legacy status values mapped to canonical contract values.
+     * Only clear semantic equivalences are aliased; everything else is
+     * preserved verbatim so the auditor reports it as UNKNOWN_STATUS_VALUE.
+     *
+     * SLIK/OJK collectability: KOL 1 (Lancar) = clear, KOL 2 (DPK) = review.
+     * KOL 3+ and "NO BIC" are intentionally NOT aliased (ambiguous).
+     *
+     * @var array<string, string>
+     */
+    private const STATUS_ALIASES = [
+        'OK' => 'CLEAR',
+        'KOL 1' => 'CLEAR',
+        'KOL 2' => 'REVIEW',
+        'REJECT' => 'REJECTED',
+        'REVISI' => 'REVISION',
+        'LANJUT' => 'ACTIVE',
+        'MUNDUR' => 'MUNDUR',
+        'PINDAH KAVLING' => 'PINDAH_KAVLING',
     ];
 
     public function header(string $value): string
@@ -167,6 +202,57 @@ class LegacyNormalizer
         return $this->text($value);
     }
 
+    /**
+     * Canonicalize an observed legacy status value. Unknown values are
+     * returned uppercased-but-verbatim so callers can flag them explicitly.
+     */
+    public function statusValue(mixed $value): ?string
+    {
+        $text = $this->text($value);
+        if ($text === null) {
+            return null;
+        }
+
+        $upper = Str::upper(trim($text));
+
+        return self::STATUS_ALIASES[$upper] ?? $upper;
+    }
+
+    /**
+     * Split a legacy `id_kavling` composite ("Marison Pati-A01") into the
+     * canonical unit key ("PROJECT|UNIT") on the last hyphen. The workbook's
+     * own formulas join on this composite (data_kav: CONCATENATE(proyek,"-",
+     * kode_kavling)), so the split boundary is unambiguous.
+     */
+    public function unitFromIdKavling(string $id): string
+    {
+        $normalized = Str::upper($this->comparisonText($id) ?? '');
+        $normalized = preg_replace('/[\s._\/]+/', '-', $normalized) ?? $normalized;
+
+        $position = strrpos($normalized, '-');
+        if ($position === false || ! $this->hasDeterministicUnitSuffix($normalized)) {
+            // Preserve the complete raw composite as a distinct candidate key;
+            // never guess a project/unit boundary for ambiguous values.
+            return 'RAW|'.$normalized;
+        }
+
+        $project = trim(substr($normalized, 0, $position), '-');
+        $unit = trim(substr($normalized, $position + 1), '-');
+
+        return trim($project.'|'.$unit, '|');
+    }
+
+    public function hasDeterministicUnitSuffix(string $id): bool
+    {
+        $normalized = Str::upper($this->comparisonText($id) ?? '');
+        $normalized = preg_replace('/[\s._\/]+/', '-', $normalized) ?? $normalized;
+
+        $suffix = Str::afterLast($normalized, '-');
+
+        return $suffix !== $normalized
+            && preg_match('/^[A-Z]{1,4}\d{1,4}[A-Z0-9]*$/', $suffix) === 1;
+    }
+
     /** @return array{value: ?string, valid: bool, empty: bool} */
     public function date(mixed $value): array
     {
@@ -177,6 +263,20 @@ class LegacyNormalizer
         $text = $this->text($value);
         if ($text === null) {
             return ['value' => null, 'valid' => true, 'empty' => true];
+        }
+
+        // Excel serial dates (1900 system, epoch offset 25569) — the Google
+        // Sheets export emits some cached formula values as raw serials.
+        if (is_int($value) || is_float($value) || preg_match('/^\d+(\.\d+)?$/', $text) === 1) {
+            $serial = (float) $text;
+            if ($serial >= 20000 && $serial <= 60000) {
+                $timestamp = (int) round(($serial - 25569) * 86400);
+                $date = (new DateTimeImmutable('@'.$timestamp))->setTime(0, 0);
+
+                return ['value' => $date->format('Y-m-d'), 'valid' => true, 'empty' => false];
+            }
+
+            return ['value' => null, 'valid' => false, 'empty' => false];
         }
 
         foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'd.m.Y', 'j/n/Y', 'j-n-Y'] as $format) {

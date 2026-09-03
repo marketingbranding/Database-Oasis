@@ -15,7 +15,7 @@ class JeparaLegacyAuditor
 
     /** @var array<string, array<int, string>> */
     private const REQUIRED_COLUMNS = [
-        'data_konsumen' => ['name', 'project', 'unit', 'financing'],
+        'data_konsumen' => ['name', 'nik', 'id_kavling', 'status_cash'],
         'bi_checking' => ['result'],
         'psjb' => [],
         'pemberkasan' => [],
@@ -40,6 +40,7 @@ class JeparaLegacyAuditor
     /** @var array<string, string> */
     private const DOCUMENT_FIELDS = [
         'psjb' => 'psjb_number',
+        'pemberkasan' => 'submission_number',
         'proses_bank' => 'sp3k_number',
         'ppjb_dev' => 'ppjb_number',
         'akad' => 'akad_number',
@@ -90,6 +91,7 @@ class JeparaLegacyAuditor
             }
         }
 
+        $this->resolveFinancingFromDownstreamEvidence($cases, $exceptions);
         $this->classifyDuplicates($sheets, $cases, $documents, $duplicates, $exceptions);
         $this->validateChronology($cases, $chronology, $exceptions);
         $reconciliation = $this->reconciliation($sheets, $cases);
@@ -111,6 +113,7 @@ class JeparaLegacyAuditor
                 'proposed_sales_cases' => count($cases),
                 'kpr_cases' => collect($cases)->where('financing', 'KPR_SUBSIDI')->count(),
                 'cash_cases' => collect($cases)->where('financing', 'CASH')->count(),
+                'financing_unresolved_cases' => collect($cases)->where('financing', 'UNRESOLVED')->count(),
                 'completed_cases' => collect($cases)->where('lifecycle_status', 'COMPLETED')->count(),
                 'active_cases' => collect($cases)->where('lifecycle_status', 'ACTIVE')->count(),
                 'mundur_cases' => collect($cases)->where('lifecycle_status', 'MUNDUR')->count(),
@@ -205,7 +208,13 @@ class JeparaLegacyAuditor
             $name = $this->normalizer->text($values['name'] ?? null);
             $normalizedName = $this->normalizer->comparisonText($name);
             $phone = $this->normalizer->phone($values['phone'] ?? null);
-            $unitKey = $this->normalizer->unit($values['project'] ?? null, $values['block'] ?? null, $values['unit'] ?? null);
+            $idKavling = $this->normalizer->text($values['id_kavling'] ?? null);
+            $unitKey = $idKavling !== null
+                ? $this->normalizer->unitFromIdKavling($idKavling)
+                : $this->normalizer->unit($values['project'] ?? null, $values['block'] ?? null, $values['unit'] ?? null);
+            // The workbook's explicit process linkage is id_kons (legacy_id
+            // after header normalization), not a stable consumer ID on the
+            // data_konsumen base sheet. Do not use id_kavling as consumer ID.
             $legacyLink = $this->normalizer->text($values['legacy_consumer_id'] ?? $values['legacy_id'] ?? null);
 
             if ($nik['empty']) {
@@ -241,18 +250,32 @@ class JeparaLegacyAuditor
 
             if ($unitKey === '') {
                 $this->exception($exceptions, AuditExceptionCode::UnitNotFound, 'data_konsumen', $row['row'], 'Project/unit kosong.');
+            } elseif ($idKavling !== null && ! $this->normalizer->hasDeterministicUnitSuffix($idKavling)) {
+                $this->exception($exceptions, AuditExceptionCode::UnitCodeAmbiguous, 'data_konsumen', $row['row'], "Batas project/unit tidak deterministik; raw dipertahankan: {$idKavling}");
             }
             $units[$unitKey] ??= [
                 'candidate_key' => $unitKey,
-                'project_original' => $this->normalizer->text($values['project'] ?? null),
-                'unit_original' => $this->normalizer->text($values['unit'] ?? null),
+                'project_original' => $idKavling !== null && $this->normalizer->hasDeterministicUnitSuffix($idKavling)
+                    ? Str::beforeLast($idKavling, '-')
+                    : $this->normalizer->text($values['project'] ?? null),
+                'unit_original' => $idKavling !== null && $this->normalizer->hasDeterministicUnitSuffix($idKavling)
+                    ? Str::afterLast($idKavling, '-')
+                    : $this->normalizer->text($values['unit'] ?? null),
+                'id_kavling_original' => $idKavling,
                 'normalized_key' => $unitKey,
-                'confidence' => $unitKey === '' ? MappingConfidence::Unresolved->value : MappingConfidence::High->value,
+                'confidence' => match (true) {
+                    $unitKey === '' => MappingConfidence::Unresolved->value,
+                    str_starts_with($unitKey, 'RAW|') => MappingConfidence::Ambiguous->value,
+                    default => MappingConfidence::High->value,
+                },
                 'legacy_rows' => [],
             ];
             $units[$unitKey]['legacy_rows'][] = $row['row'];
 
             $financing = $this->financing($values);
+            if ($financing['exception'] !== null) {
+                $this->exception($exceptions, $financing['exception'], 'data_konsumen', $row['row'], $financing['message']);
+            }
             $status = $this->lifecycleStatus($values);
             $booking = $this->firstDate($values, ['booking_date', 'date'], 'data_konsumen', $row['row'], $exceptions);
             $caseKey = hash('sha256', $consumerKey.'|'.$unitKey.'|'.$row['row']);
@@ -264,10 +287,17 @@ class JeparaLegacyAuditor
                 'nik_normalized' => $nik['valid'] ? $nik['value'] : null,
                 'name_normalized' => $normalizedName,
                 'phone_normalized' => $phone,
-                'financing' => $financing,
+                'financing' => $financing['value'],
+                'financing_confidence' => $financing['confidence'],
+                'financing_evidence' => $financing['evidence'],
                 'lifecycle_status' => $status,
+                'lifecycle_source' => Str::upper($this->normalizer->text($values['lifecycle_status'] ?? $values['status'] ?? null) ?? ''),
                 'previous_case_candidate' => null,
-                'confidence' => $unitKey === '' ? MappingConfidence::Unresolved->value : $confidence->value,
+                'confidence' => match (true) {
+                    $unitKey === '' => MappingConfidence::Unresolved->value,
+                    str_starts_with($unitKey, 'RAW|') => MappingConfidence::Ambiguous->value,
+                    default => $confidence->value,
+                },
                 'evidence' => [$consumerKey, $unitKey, 'data_konsumen:'.$row['row']],
                 'dates' => array_filter(['consumer' => $booking]),
                 'process_rows' => ['data_konsumen' => [$row['row']]],
@@ -328,18 +358,53 @@ class JeparaLegacyAuditor
     {
         $legacyLink = $this->normalizer->text($values['legacy_consumer_id'] ?? $values['legacy_id'] ?? null);
         $nik = $this->normalizer->nik($values['nik'] ?? null);
-        $unitKey = $this->normalizer->unit($values['project'] ?? null, $values['block'] ?? null, $values['unit'] ?? null);
+        $candidateNik = null;
+        if (! $nik['valid'] && $legacyLink !== null && preg_match('/(\d{16})$/', $legacyLink, $match) === 1) {
+            // Candidate evidence only. Never assigned to canonical NIK or used
+            // to promote confidence; it may match an existing trusted NIK.
+            $candidateNik = $match[1];
+        }
+        $idKavling = $this->normalizer->text($values['id_kavling'] ?? null);
+        $unitKey = $idKavling !== null
+            ? $this->normalizer->unitFromIdKavling($idKavling)
+            : $this->normalizer->unit($values['project'] ?? null, $values['block'] ?? null, $values['unit'] ?? null);
         $name = $this->normalizer->comparisonText($values['name'] ?? null);
         $phone = $this->normalizer->phone($values['phone'] ?? null);
 
-        return collect($cases)->filter(function (array $case) use ($legacyLink, $nik, $unitKey, $name, $phone): bool {
+        return collect($cases)->filter(function (array $case) use ($legacyLink, $nik, $candidateNik, $unitKey, $name, $phone): bool {
             $linked = $legacyLink !== null && $case['legacy_consumer_id'] === $legacyLink;
             $exactNik = $nik['valid'] && $case['nik_normalized'] === $nik['value'];
-            $composite = $name !== null && $phone !== null && $case['name_normalized'] === $name && $case['phone_normalized'] === $phone;
+            $corroboratedCandidateNik = $candidateNik !== null && $case['nik_normalized'] === $candidateNik;
+            $sameName = $name !== null && $case['name_normalized'] === $name;
+            $samePhone = $phone !== null && $case['phone_normalized'] === $phone;
             $sameUnit = $unitKey === '' || $case['unit_key'] === $unitKey;
 
-            return ($linked || $exactNik || $composite) && $sameUnit;
+            // Name + unit is candidate matching only. The caller accepts only a
+            // single existing case on that exact unit; no Consumer is merged.
+            return ($linked || $exactNik || $corroboratedCandidateNik || ($sameName && ($samePhone || $sameUnit))) && $sameUnit;
         })->keys()->all();
+    }
+
+    /**
+     * Confidence of one process-to-case attachment. Name + exact unit stays
+     * MEDIUM by product rule; it never changes Consumer identity/confidence.
+     *
+     * @param  array<string, mixed>  $values
+     * @param  array<string, mixed>  $case
+     */
+    private function processRowConfidence(array $values, array $case): MappingConfidence
+    {
+        $nik = $this->normalizer->nik($values['nik'] ?? null);
+        if ($nik['valid'] && $case['nik_normalized'] === $nik['value']) {
+            return MappingConfidence::Exact;
+        }
+
+        $legacyLink = $this->normalizer->text($values['legacy_consumer_id'] ?? $values['legacy_id'] ?? null);
+        if ($legacyLink !== null && $case['legacy_consumer_id'] === $legacyLink) {
+            return MappingConfidence::High;
+        }
+
+        return MappingConfidence::Medium;
     }
 
     /** @param array<string, mixed> $row
@@ -351,6 +416,13 @@ class JeparaLegacyAuditor
     {
         $values = $row['values'];
         $case['process_rows'][$sheet][] = $row['row'];
+        $case['process_confidence'][$sheet.':'.$row['row']] = $this->processRowConfidence($values, $case)->value;
+
+        $legacyLink = $this->normalizer->text($values['legacy_consumer_id'] ?? $values['legacy_id'] ?? null);
+        if ($legacyLink !== null && preg_match('/(\d{16})$/', $legacyLink, $match) === 1 && $this->normalizer->nik($values['nik'] ?? null)['valid'] === false) {
+            $case['evidence'][] = 'CANDIDATE_NIK_FROM_GENERATED_ID:'.$match[1].':'.$sheet.':'.$row['row'];
+        }
+
         foreach (self::DATE_FIELDS[$sheet] ?? [] as $field) {
             if (array_key_exists($field, $values)) {
                 $date = $this->firstDate($values, [$field], $sheet, $row['row'], $exceptions);
@@ -361,20 +433,52 @@ class JeparaLegacyAuditor
         }
 
         if ($sheet === 'proses_bank') {
-            $result = Str::upper($this->normalizer->text($values['result'] ?? $values['status'] ?? null) ?? '');
-            if (! in_array($result, ['PROCESS', 'REVISION', 'APPROVED', 'REJECTED'], true)) {
+            $result = $this->normalizer->statusValue($values['result'] ?? $values['status'] ?? null) ?? '';
+            // CASH is accepted only as an observed legacy path marker; it is
+            // still reported separately when stored as fake SP3K/bank data.
+            if ($result === '') {
+                $this->exception($exceptions, AuditExceptionCode::MissingProcessStatus, $sheet, $row['row'], 'Status/respons bank kosong pada row proses substantif.');
+            } elseif (! in_array($result, ['PROCESS', 'REVISION', 'APPROVED', 'REJECTED', 'CASH'], true)) {
                 $this->exception($exceptions, AuditExceptionCode::UnknownStatusValue, $sheet, $row['row'], "Status bank tidak dikenal: {$result}");
             }
             $sp3k = Str::upper($this->normalizer->document($values['sp3k_number'] ?? null) ?? '');
             if ($sp3k === 'CASH') {
                 $this->exception($exceptions, AuditExceptionCode::CashFakeSp3k, $sheet, $row['row'], 'Literal CASH adalah placeholder, bukan SP3K.');
+            } elseif (in_array($sp3k, ['REJECT', 'REJECTED'], true)) {
+                $this->exception($exceptions, AuditExceptionCode::PlaceholderSp3kValue, $sheet, $row['row'], "Literal {$sp3k} adalah status, bukan nomor SP3K.");
+            }
+
+            if (in_array($result, ['PROCESS', 'REVISION', 'APPROVED', 'REJECTED'], true)) {
+                $case['strong_kpr_evidence'][] = 'BANK_RESPONSE:'.$result.':'.$sheet.':'.$row['row'];
+            }
+            if ($sp3k !== '' && ! in_array($sp3k, ['CASH', 'REJECT', 'REJECTED'], true)) {
+                $case['strong_kpr_evidence'][] = 'VALID_SP3K_CANDIDATE:'.$sheet.':'.$row['row'];
             }
         }
 
         if ($sheet === 'bi_checking') {
-            $result = Str::upper($this->normalizer->text($values['result'] ?? $values['status'] ?? null) ?? '');
-            if (! in_array($result, ['CLEAR', 'REVIEW', 'REJECTED'], true)) {
+            $result = $this->normalizer->statusValue($values['result'] ?? $values['status'] ?? null) ?? '';
+            if ($result === '') {
+                $this->exception($exceptions, AuditExceptionCode::MissingProcessStatus, $sheet, $row['row'], 'Hasil BI kosong pada row proses substantif.');
+            } elseif (! in_array($result, ['CLEAR', 'REVIEW', 'REJECTED'], true)) {
                 $this->exception($exceptions, AuditExceptionCode::UnknownStatusValue, $sheet, $row['row'], "Hasil BI tidak dikenal: {$result}");
+            }
+        }
+
+        if ($sheet === 'bast') {
+            $explicitConflict = in_array($case['lifecycle_status'], ['MUNDUR', 'REJECT', 'PINDAH_KAVLING'], true);
+            if ($explicitConflict) {
+                $this->exception(
+                    $exceptions,
+                    AuditExceptionCode::LifecycleConflict,
+                    $sheet,
+                    $row['row'],
+                    "BAST valid bertentangan dengan lifecycle eksplisit {$case['lifecycle_status']}; tidak di-override.",
+                );
+            } elseif (! in_array($case['lifecycle_source'], ['ACTIVE', 'COMPLETED'], true)) {
+                // Blank/descriptive lifecycle (e.g. "Lanjut") plus a confidently
+                // linked BAST is stronger completion evidence.
+                $case['lifecycle_status'] = 'COMPLETED';
             }
         }
 
@@ -399,6 +503,49 @@ class JeparaLegacyAuditor
                 'identity_key' => $caseKey,
             ];
         }
+    }
+
+    /**
+     * Infer KPR only when an unresolved case has both a linked submission and
+     * a canonical non-CASH bank response/SP3K candidate. Explicit status_cash
+     * evidence always wins and is never treated as equivalent to inference.
+     *
+     * @param  array<int, array<string, mixed>>  $cases
+     *
+     * @param-out array<int, array<string, mixed>> $cases
+     *
+     * @param  array<int, array<string, mixed>>  $exceptions
+     */
+    private function resolveFinancingFromDownstreamEvidence(array &$cases, array &$exceptions): void
+    {
+        foreach ($cases as &$case) {
+            if ($case['financing'] !== 'UNRESOLVED') {
+                continue;
+            }
+
+            $hasSubmission = ! empty($case['process_rows']['pemberkasan']);
+            $evidence = array_values(array_unique($case['strong_kpr_evidence'] ?? []));
+
+            if ($hasSubmission && $evidence !== []) {
+                $case['financing'] = 'KPR_SUBSIDI';
+                $case['financing_confidence'] = MappingConfidence::High->value;
+                $case['financing_evidence'] = [
+                    'INFERRED_KPR_FROM_LINKED_SUBMISSION_AND_BANK_CHAIN',
+                    ...$evidence,
+                ];
+
+                continue;
+            }
+
+            $this->exception(
+                $exceptions,
+                AuditExceptionCode::FinancingUnresolved,
+                'data_konsumen',
+                $case['process_rows']['data_konsumen'][0],
+                'Financing tetap UNRESOLVED; tidak ada chain submission + bank evidence yang kuat.',
+            );
+        }
+        unset($case);
     }
 
     /** @param array<string, mixed> $sheets
@@ -561,7 +708,7 @@ class JeparaLegacyAuditor
         $reconstructed = [
             'akad' => collect($cases)->filter(fn (array $case): bool => ! empty($case['process_rows']['akad']))->count(),
             'bast' => collect($cases)->filter(fn (array $case): bool => ! empty($case['process_rows']['bast']))->count(),
-            'sp3k' => collect($this->rowsFromSheet($sheets['proses_bank'] ?? []))->filter(fn (array $row): bool => Str::upper((string) ($row['values']['result'] ?? '')) === 'APPROVED' && filled($row['values']['sp3k_number'] ?? null) && Str::upper(trim((string) $row['values']['sp3k_number'])) !== 'CASH')->count(),
+            'sp3k' => collect($this->rowsFromSheet($sheets['proses_bank'] ?? []))->filter(fn (array $row): bool => $this->normalizer->statusValue($row['values']['result'] ?? null) === 'APPROVED' && filled($row['values']['sp3k_number'] ?? null) && ! in_array(Str::upper(trim((string) $row['values']['sp3k_number'])), ['CASH', 'REJECT', 'REJECTED'], true))->count(),
             'active_transactions' => collect($cases)->where('lifecycle_status', 'ACTIVE')->count(),
         ];
 
@@ -594,21 +741,64 @@ class JeparaLegacyAuditor
         return null;
     }
 
-    /** @param array<string, mixed> $values */
-    private function financing(array $values): string
+    /**
+     * @param  array<string, mixed>  $values
+     * @return array{value: string, confidence: string, evidence: array<int, string>, exception: AuditExceptionCode|null, message: string}
+     */
+    private function financing(array $values): array
     {
-        $evidence = Str::upper($this->normalizer->text($values['financing'] ?? null) ?? '');
-        if ($evidence === 'CASH' || Str::upper($this->normalizer->document($values['sp3k_number'] ?? null) ?? '') === 'CASH') {
-            return 'CASH';
+        // Canonical fixtures retain explicit financing support, but the real
+        // Jepara contract is status_cash=YA/TIDAK.
+        $financing = Str::upper($this->normalizer->text($values['financing'] ?? null) ?? '');
+        if (in_array($financing, ['CASH', 'KPR_SUBSIDI'], true)) {
+            return [
+                'value' => $financing,
+                'confidence' => MappingConfidence::Exact->value,
+                'evidence' => ['EXPLICIT_FINANCING:'.$financing],
+                'exception' => null,
+                'message' => '',
+            ];
         }
 
-        return 'KPR_SUBSIDI';
+        $cashFlag = Str::upper($this->normalizer->text($values['status_cash'] ?? null) ?? '');
+
+        if ($cashFlag === 'YA') {
+            return [
+                'value' => 'CASH',
+                'confidence' => MappingConfidence::Exact->value,
+                'evidence' => ['EXPLICIT_STATUS_CASH:YA'],
+                'exception' => null,
+                'message' => '',
+            ];
+        }
+
+        if ($cashFlag === 'TIDAK') {
+            return [
+                'value' => 'KPR_SUBSIDI',
+                'confidence' => MappingConfidence::Exact->value,
+                'evidence' => ['EXPLICIT_STATUS_CASH:TIDAK'],
+                'exception' => null,
+                'message' => '',
+            ];
+        }
+
+        $missing = $cashFlag === '';
+
+        return [
+            'value' => 'UNRESOLVED',
+            'confidence' => MappingConfidence::Unresolved->value,
+            'evidence' => $missing ? ['STATUS_CASH_MISSING'] : ['STATUS_CASH_UNKNOWN:'.$cashFlag],
+            'exception' => $missing ? AuditExceptionCode::MissingFinancingStatus : AuditExceptionCode::FinancingUnresolved,
+            'message' => $missing
+                ? 'status_cash kosong; financing tidak boleh default ke KPR.'
+                : "status_cash tidak dikenal: {$cashFlag}; financing tidak boleh default ke KPR.",
+        ];
     }
 
     /** @param array<string, mixed> $values */
     private function lifecycleStatus(array $values): string
     {
-        $value = Str::upper($this->normalizer->text($values['status'] ?? null) ?? 'ACTIVE');
+        $value = $this->normalizer->statusValue($values['lifecycle_status'] ?? $values['status'] ?? null) ?? 'ACTIVE';
 
         return match (true) {
             str_contains($value, 'PINDAH') => 'PINDAH_KAVLING',

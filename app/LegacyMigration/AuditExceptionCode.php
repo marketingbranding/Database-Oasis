@@ -18,6 +18,11 @@ enum AuditExceptionCode: string
     case OrphanBankProcess = 'ORPHAN_BANK_PROCESS';
     case MultipleAuthoritativeApprovalCandidates = 'MULTIPLE_AUTHORITATIVE_APPROVAL_CANDIDATES';
     case CashFakeSp3k = 'CASH_FAKE_SP3K';
+    case PlaceholderSp3kValue = 'PLACEHOLDER_SP3K_VALUE';
+    case MissingProcessStatus = 'MISSING_PROCESS_STATUS';
+    case MissingFinancingStatus = 'MISSING_FINANCING_STATUS';
+    case FinancingUnresolved = 'FINANCING_UNRESOLVED';
+    case LifecycleConflict = 'LIFECYCLE_CONFLICT';
     case PpjbWithoutUpstream = 'PPJB_WITHOUT_UPSTREAM';
     case MultipleAkad = 'MULTIPLE_AKAD';
     case BastWithoutAkad = 'BAST_WITHOUT_AKAD';
