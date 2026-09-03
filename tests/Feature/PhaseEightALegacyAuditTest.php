@@ -22,18 +22,22 @@ class PhaseEightALegacyAuditTest extends TestCase
 {
     use RefreshDatabase;
 
+    private string $testRoot;
+
     private string $source;
 
-    private ?string $dumpPath = null;
+    private string $output;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $directory = storage_path('app/private/legacy-audit-fixture');
-        File::deleteDirectory($directory);
-        File::ensureDirectoryExists($directory);
-        $this->source = $directory;
+        $this->testRoot = storage_path('framework/testing/legacy-audit');
+        $this->source = $this->testRoot.'/input';
+        $this->output = $this->testRoot.'/output';
+
+        File::deleteDirectory($this->testRoot);
+        File::ensureDirectoryExists($this->source);
 
         $this->write('data_konsumen.csv', [
             ['legacy_id', 'nik', 'name', 'phone', 'project', 'block', 'kavling', 'pembiayaan', 'status', 'tanggal_booking'],
@@ -127,11 +131,9 @@ class PhaseEightALegacyAuditTest extends TestCase
 
     protected function tearDown(): void
     {
-        if ($this->dumpPath !== null && is_file($this->dumpPath)) {
-            @unlink($this->dumpPath);
-        }
-        File::deleteDirectory($this->source);
-        File::deleteDirectory(storage_path('app/private/legacy-audit'));
+        // Delete only the exact directory this test created. The real audit
+        // path storage/app/private/legacy-audit is intentionally untouched.
+        File::deleteDirectory($this->testRoot);
 
         parent::tearDown();
     }
@@ -300,7 +302,7 @@ class PhaseEightALegacyAuditTest extends TestCase
 
     public function test_reader_supports_xlsx_with_identical_report(): void
     {
-        $xlsxPath = $this->source.'/../fixture-jepara.xlsx';
+        $xlsxPath = $this->testRoot.'/fixture-jepara.xlsx';
         $this->buildXlsx($xlsxPath);
 
         $csvReport = $this->app->make(JeparaLegacyAuditor::class)->audit($this->source);
@@ -343,15 +345,41 @@ class PhaseEightALegacyAuditTest extends TestCase
 
     public function test_command_writes_protected_report_and_returns_success(): void
     {
-        $this->artisan('legacy:audit', ['branch' => 'jepara', 'source' => $this->source])
-            ->assertExitCode(0);
+        $this->artisan('legacy:audit', [
+            'branch' => 'jepara',
+            'source' => $this->source,
+            '--output' => $this->output,
+        ])->assertExitCode(0);
 
-        $report = json_decode((string) file_get_contents(storage_path('app/private/legacy-audit/jepara/summary.json')), true);
+        $report = json_decode((string) file_get_contents($this->output.'/summary.json'), true);
         $this->assertSame('AUDIT_ONLY', $report['meta']['mode']);
         $this->assertFalse($report['meta']['normal_tables_written']);
 
         foreach (['consumers.csv', 'units.csv', 'sales_cases.csv', 'document_mapping.csv', 'exceptions.csv', 'duplicate_analysis.csv', 'chronology_issues.csv', 'unresolved_records.csv', 'schema_inventory.csv'] as $file) {
-            $this->assertFileExists(storage_path('app/private/legacy-audit/jepara/'.$file));
+            $this->assertFileExists($this->output.'/'.$file);
+        }
+    }
+
+    public function test_phase_eight_a_cleanup_cannot_delete_or_modify_external_sentinel(): void
+    {
+        $sentinel = storage_path('framework/testing/legacy-audit-sentinel.txt');
+        $contents = 'real-migration-artifact-sentinel';
+        file_put_contents($sentinel, $contents);
+
+        try {
+            $this->artisan('legacy:audit', [
+                'branch' => 'jepara',
+                'source' => $this->source,
+                '--output' => $this->output,
+            ])->assertExitCode(0);
+
+            // Exercise the same exact cleanup scope as tearDown.
+            File::deleteDirectory($this->testRoot);
+
+            $this->assertFileExists($sentinel);
+            $this->assertSame($contents, file_get_contents($sentinel));
+        } finally {
+            @unlink($sentinel);
         }
     }
 
@@ -376,12 +404,11 @@ class PhaseEightALegacyAuditTest extends TestCase
     /** Dump actual report when test failures need investigation. */
     private function dumpReport(array $report, string $suffix = ''): void
     {
-        $path = sys_get_temp_dir().'/legacy-audit-dump'.$suffix.'.json';
+        File::ensureDirectoryExists($this->testRoot.'/debug');
         file_put_contents(
-            $path,
+            $this->testRoot.'/debug/report'.$suffix.'.json',
             json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
         );
-        $this->dumpPath = $path;
     }
 
     /** @return array<string, int> */
