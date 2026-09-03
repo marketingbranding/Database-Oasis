@@ -250,6 +250,13 @@ class PhaseEightALegacyAuditTest extends TestCase
 
     public function test_invalid_date_and_chronology_violations_are_reported(): void
     {
+        // Invalid date belongs to a process entity; data_konsumen is identity
+        // reconstruction only and must not emit date exceptions.
+        file_put_contents($this->source.'/pemberkasan.csv', implode("\n", [
+            'legacy_id,bank,tanggal_pemberkasan,catatan',
+            'K-001,BCA,2026-13-99,invalid tanggal proses',
+        ]));
+
         $report = $this->app->make(JeparaLegacyAuditor::class)->audit($this->source);
         $codes = collect($report['exceptions'])->pluck('code');
 

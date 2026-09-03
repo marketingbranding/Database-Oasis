@@ -20,6 +20,7 @@ enum AuditExceptionCode: string
     case CashFakeSp3k = 'CASH_FAKE_SP3K';
     case PlaceholderSp3kValue = 'PLACEHOLDER_SP3K_VALUE';
     case MissingProcessStatus = 'MISSING_PROCESS_STATUS';
+    case MissingProcessDate = 'MISSING_PROCESS_DATE';
     case MissingFinancingStatus = 'MISSING_FINANCING_STATUS';
     case FinancingUnresolved = 'FINANCING_UNRESOLVED';
     case LifecycleConflict = 'LIFECYCLE_CONFLICT';

@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('legacy_migration_resolutions', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->foreignUlid('candidate_id')->constrained('legacy_migration_candidates')->cascadeOnDelete();
+            $table->string('exception_code');
+            $table->string('resolution_type');
+            $table->json('selected_value')->nullable();
+            $table->text('note');
+            $table->foreignUlid('resolved_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('resolved_at');
+            $table->string('source_fingerprint');
+            $table->string('audit_fingerprint');
+            $table->timestamps();
+
+            $table->index('candidate_id');
+            $table->index('exception_code');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('legacy_migration_resolutions');
+    }
+};

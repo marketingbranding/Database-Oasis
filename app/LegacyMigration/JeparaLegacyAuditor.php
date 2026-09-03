@@ -80,7 +80,11 @@ class JeparaLegacyAuditor
                 if (count($caseIndexes) !== 1) {
                     $code = $this->orphanCode($sheet);
                     $this->exception($exceptions, $code, $sheet, $row['row'], count($caseIndexes) > 1 ? 'Lebih dari satu kandidat Sales Case.' : 'Sales Case tidak ditemukan.');
-                    $unresolved[] = $this->trace($sheet, $row, ['reason' => count($caseIndexes) > 1 ? 'AMBIGUOUS' : 'UNRESOLVED']);
+                    $unresolved[] = $this->trace($sheet, $row, [
+                        'reason' => count($caseIndexes) > 1 ? 'AMBIGUOUS' : 'UNRESOLVED',
+                        'candidate_count' => count($caseIndexes),
+                        ...$this->ambiguityDiagnostic($row['values'], $cases),
+                    ]);
 
                     continue;
                 }
@@ -98,10 +102,18 @@ class JeparaLegacyAuditor
         $confidence = collect($cases)->countBy('confidence')->sortKeys()->all();
         $exceptionCounts = collect($exceptions)->countBy('code')->sortKeys()->all();
 
+        $sourceFingerprint = is_file($source) ? hash_file('sha256', $source) : null;
+        $auditFingerprint = hash('sha256', json_encode([
+            'cases' => array_map(fn (array $case): array => Arr::only($case, ['candidate_key', 'consumer_key', 'unit_key', 'financing', 'lifecycle_status', 'confidence']), $cases),
+            'exceptions' => array_map(fn (array $exception): array => Arr::only($exception, ['code', 'sheet', 'row', 'message']), $exceptions),
+        ], JSON_THROW_ON_ERROR));
+
         return [
             'meta' => [
                 'branch' => 'Jepara',
                 'source' => realpath($source) ?: $source,
+                'source_fingerprint' => $sourceFingerprint,
+                'audit_fingerprint' => $auditFingerprint,
                 'audited_at' => now()->toIso8601String(),
                 'mode' => 'AUDIT_ONLY',
                 'normal_tables_written' => false,
@@ -138,6 +150,7 @@ class JeparaLegacyAuditor
             'chronology_issues' => $chronology,
             'unresolved_records' => $unresolved,
             'reconciliation' => $reconciliation,
+            'migration_analysis' => $this->migrationAnalysis($sheets, $cases, $exceptions, $duplicates, $unresolved),
         ];
     }
 
@@ -383,6 +396,63 @@ class JeparaLegacyAuditor
             // single existing case on that exact unit; no Consumer is merged.
             return ($linked || $exactNik || $corroboratedCandidateNik || ($sameName && ($samePhone || $sameUnit))) && $sameUnit;
         })->keys()->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @param  array<int, array<string, mixed>>  $cases
+     * @return array<string, bool|int|string|null>
+     */
+    private function ambiguityDiagnostic(array $values, array $cases): array
+    {
+        $legacyLink = $this->normalizer->text($values['legacy_consumer_id'] ?? $values['legacy_id'] ?? null);
+        $nik = $this->normalizer->nik($values['nik'] ?? null);
+        $candidateNik = null;
+        if (! $nik['valid'] && $legacyLink !== null && preg_match('/(\d{16})$/', $legacyLink, $match) === 1) {
+            $candidateNik = $match[1];
+        }
+        $idKavling = $this->normalizer->text($values['id_kavling'] ?? null);
+        $unitKey = $idKavling !== null
+            ? $this->normalizer->unitFromIdKavling($idKavling)
+            : $this->normalizer->unit($values['project'] ?? null, $values['block'] ?? null, $values['unit'] ?? null);
+        $name = $this->normalizer->comparisonText($values['name'] ?? null);
+        $phone = $this->normalizer->phone($values['phone'] ?? null);
+
+        $consumerMatches = collect($cases)->filter(function (array $case) use ($legacyLink, $nik, $candidateNik, $name, $phone): bool {
+            return ($legacyLink !== null && $case['legacy_consumer_id'] === $legacyLink)
+                || ($nik['valid'] && $case['nik_normalized'] === $nik['value'])
+                || ($candidateNik !== null && $case['nik_normalized'] === $candidateNik)
+                || ($name !== null && $case['name_normalized'] === $name && ($phone === null || $case['phone_normalized'] === $phone));
+        })->count();
+
+        $unitMatches = collect($cases)->filter(fn (array $case): bool => $unitKey !== '' && $case['unit_key'] === $unitKey)->count();
+        $combinedMatches = collect($cases)->filter(fn (array $case): bool => $unitKey !== '' && $case['unit_key'] === $unitKey
+            && (($legacyLink !== null && $case['legacy_consumer_id'] === $legacyLink)
+                || ($nik['valid'] && $case['nik_normalized'] === $nik['value'])
+                || ($candidateNik !== null && $case['nik_normalized'] === $candidateNik)
+                || ($name !== null && $case['name_normalized'] === $name)))->count();
+
+        $identityMissing = $legacyLink === null && ! $nik['valid'] && $name === null;
+        $unitMissing = $unitKey === '';
+
+        $reason = match (true) {
+            $identityMissing => 'MISSING_CONSUMER_IDENTITY',
+            $unitMissing => 'MISSING_UNIT_IDENTITY',
+            $combinedMatches > 1 => 'NAME_AND_UNIT_MATCHED_MULTIPLE_HISTORICAL_CASES',
+            $consumerMatches > 1 => 'MULTIPLE_CONSUMER_CANDIDATES_ON_UNIT',
+            $consumerMatches === 0 && $unitMatches > 0 => 'UNIT_RESOLVED_BUT_CONSUMER_UNRESOLVED',
+            default => 'OTHER',
+        };
+
+        return [
+            'ambiguity_reason' => $reason,
+            'consumer_candidate_count' => $consumerMatches,
+            'unit_candidate_count' => $unitMatches,
+            'combined_candidate_count' => $combinedMatches,
+            'has_legacy_link' => $legacyLink !== null,
+            'has_exact_nik' => $nik['valid'],
+            'has_candidate_nik' => $candidateNik !== null,
+        ];
     }
 
     /**
@@ -693,6 +763,331 @@ class JeparaLegacyAuditor
         }
     }
 
+    /**
+     * Migration-readiness severity pass. Enriches exceptions without erasing
+     * them, recalculates readiness classification, and maps each blocker back
+     * to the distinct Sales Case candidate it affects.
+     *
+     * @param  array<string, mixed>  $sheets
+     * @param  array<int, array<string, mixed>>  $cases
+     * @param  array<int, array<string, mixed>>  $exceptions
+     * @param  array<int, array<string, mixed>>  $duplicates
+     * @param  array<int, array<string, mixed>>  $unresolved
+     * @return array<string, mixed>
+     */
+    private function migrationAnalysis(array $sheets, array $cases, array $exceptions, array $duplicates, array $unresolved): array
+    {
+        $transactional = collect(self::TRANSACTION_SHEETS);
+        $derivedDuplicateCount = 0;
+        $transactionalExactDuplicates = 0;
+
+        $caseByRow = [];
+        foreach ($cases as $case) {
+            foreach ($case['process_rows'] as $sheet => $rows) {
+                foreach ($rows as $row) {
+                    $caseByRow[$sheet.'|'.$row][] = $case;
+                }
+            }
+        }
+
+        // Row-value lookup keyed by sheet|row for authoritative determination.
+        $valueByRow = [];
+        foreach ($sheets as $sheetName => $sheet) {
+            foreach ($this->rowsFromSheet($sheet) as $row) {
+                $valueByRow[$sheetName.'|'.$row['row']] = $row['values'];
+            }
+        }
+
+        $caseBlockers = [];
+        $caseReviews = [];
+        $reviewByEntityCode = [];
+        $blockerByEntityCode = [];
+        $candidateExceptions = [];
+        $transactionalWarnings = 0;
+        $derivedDiagnosticWarnings = 0;
+        $severityCounts = [MigrationSeverity::Warning->value => 0, MigrationSeverity::Review->value => 0, MigrationSeverity::Blocking->value => 0];
+
+        foreach ($exceptions as $exception) {
+            $code = $exception['code'];
+            $entity = $exception['sheet'] ?? 'unknown';
+            $rowKey = $entity.'|'.($exception['row'] ?? 0);
+            $isTransactional = $transactional->contains($entity);
+            $linkedCases = $caseByRow[$rowKey] ?? [];
+            $uniquelyResolved = count($linkedCases) === 1;
+            $case = $linkedCases[0] ?? null;
+            $values = $valueByRow[$rowKey] ?? [];
+
+            $severity = $this->entityAwareSeverity($code, $entity, $values, $case, $uniquelyResolved);
+            $derivedDiagnostic = ! $isTransactional;
+
+            // Only transactional exceptions become candidate-level records.
+            // Derived/pivot noise never pollutes the candidate dashboard.
+            if ($isTransactional) {
+                foreach ($linkedCases as $linkedCase) {
+                    $candidateExceptions[] = [
+                        'candidate_key' => $linkedCase['candidate_key'],
+                        'code' => $code,
+                        'severity' => $severity->value,
+                        'source_sheet' => $entity,
+                        'source_row' => $exception['row'] ?? null,
+                        'entity_type' => $entity,
+                        'message' => $exception['message'] ?? '',
+                        'evidence' => $this->candidateExceptionEvidence($exception, $values),
+                    ];
+                }
+            }
+
+            $severityCounts[$severity->value]++;
+            if ($severity === MigrationSeverity::Warning) {
+                if ($isTransactional) {
+                    $transactionalWarnings++;
+                } else {
+                    $derivedDiagnosticWarnings++;
+                }
+            }
+
+            if ($severity === MigrationSeverity::Blocking) {
+                $blockerByEntityCode[$entity][$code] = ($blockerByEntityCode[$entity][$code] ?? 0) + 1;
+                foreach ($linkedCases as $linkedCase) {
+                    $caseBlockers[$linkedCase['candidate_key']][$code] = true;
+                }
+            } elseif ($severity === MigrationSeverity::Review) {
+                $reviewByEntityCode[$entity][$code] = ($reviewByEntityCode[$entity][$code] ?? 0) + 1;
+                foreach ($linkedCases as $linkedCase) {
+                    $caseReviews[$linkedCase['candidate_key']][$code] = true;
+                }
+            }
+
+            if ($code === AuditExceptionCode::ExactRowDuplicate->value) {
+                if ($isTransactional) {
+                    $transactionalExactDuplicates++;
+                } else {
+                    $derivedDuplicateCount++;
+                }
+            }
+        }
+
+        $blockerMatrix = [];
+        $blockerCardinality = [1 => 0, 2 => 0, 3 => 0];
+        foreach ($caseBlockers as $candidateKey => $codes) {
+            $reasonCount = count($codes);
+            $blockerMatrix[$candidateKey] = [
+                'reason_count' => $reasonCount,
+                'reasons' => array_keys($codes),
+            ];
+            $blockerCardinality[min($reasonCount, 3)]++;
+        }
+
+        $auto = [];
+        $review = [];
+        $blocked = [];
+        foreach ($cases as $case) {
+            $key = $case['candidate_key'];
+            if (isset($caseBlockers[$key]) || $case['financing'] === 'UNRESOLVED') {
+                $blocked[] = $case;
+
+                continue;
+            }
+
+            if (isset($caseReviews[$key]) || $case['confidence'] === MappingConfidence::Medium->value) {
+                $review[] = $case;
+
+                continue;
+            }
+
+            $auto[] = $case;
+        }
+
+        $ambiguousBreakdown = collect($unresolved)
+            ->where('reason', 'AMBIGUOUS')
+            ->groupBy(fn (array $row): string => $row['ambiguity_reason'] ?? 'OTHER')
+            ->map(fn ($group): int => $group->count())
+            ->sortKeys()
+            ->all();
+
+        $safeDeterministic = collect($unresolved)
+            ->where('reason', 'AMBIGUOUS')
+            ->filter(fn (array $row): bool => ($row['combined_candidate_count'] ?? 0) === 1
+                && (($row['has_exact_nik'] ?? false) === true || ($row['has_legacy_link'] ?? false) === true))
+            ->values()
+            ->all();
+
+        $downstream = collect($unresolved)->countBy('reason')->all();
+
+        $candidateAnalysis = [];
+        foreach ($cases as $case) {
+            $key = $case['candidate_key'];
+            $candidateAnalysis[$key] = [
+                'readiness' => match (true) {
+                    isset($caseBlockers[$key]), $case['financing'] === 'UNRESOLVED' => 'BLOCKED',
+                    isset($caseReviews[$key]), $case['confidence'] === MappingConfidence::Medium->value => 'REVIEW',
+                    default => 'AUTO',
+                },
+                'confidence' => $case['confidence'],
+                'financing' => $case['financing'],
+                'lifecycle' => $case['lifecycle_status'],
+                'blocker_count' => isset($caseBlockers[$key]) ? count($caseBlockers[$key]) : 0,
+                'review_count' => isset($caseReviews[$key]) ? count($caseReviews[$key]) : 0,
+            ];
+        }
+
+        return [
+            'exception_severity_counts' => $severityCounts,
+            'derived_reconciliation_duplicate_count' => $derivedDuplicateCount,
+            'transactional_exact_duplicate_count' => $transactionalExactDuplicates,
+            'transactional_warnings' => $transactionalWarnings,
+            'derived_diagnostic_warnings' => $derivedDiagnosticWarnings,
+            'distinct_blocked_sales_cases' => count($blockerMatrix),
+            'distinct_review_sales_cases' => count($caseReviews),
+            'blocker_matrix' => $blockerMatrix,
+            'blocker_cardinality' => $blockerCardinality,
+            'blocker_by_entity_code' => $blockerByEntityCode,
+            'review_by_entity_code' => $reviewByEntityCode,
+            'blocker_reason_counts' => collect($caseBlockers)->flatMap(fn (array $codes): array => array_keys($codes))->countBy()->sortKeys()->all(),
+            'review_reason_counts' => collect($caseReviews)->flatMap(fn (array $codes): array => array_keys($codes))->countBy()->sortKeys()->all(),
+            'readiness' => [
+                'auto_migratable' => count($auto),
+                'review_required' => count($review),
+                'blocked' => count($blocked),
+            ],
+            'sales_case_ambiguous_root_cause' => $ambiguousBreakdown,
+            'safe_deterministic_resolution_candidates' => $safeDeterministic,
+            'candidate_exceptions' => $candidateExceptions,
+            'candidate_analysis' => $candidateAnalysis,
+            'downstream_rows' => [
+                'attached' => collect($cases)->flatMap(fn (array $case): array => array_values($case['process_rows'] ?? []))->flatten()->count(),
+                'ambiguous' => $downstream['AMBIGUOUS'] ?? 0,
+                'orphan' => $downstream['UNRESOLVED'] ?? 0,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $exception
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function candidateExceptionEvidence(array $exception, array $values): array
+    {
+        $evidence = ['code' => $exception['code']];
+        foreach (['nik', 'name', 'id_kavling', 'bank', 'sp3k_number', 'result', 'status', 'status_cash'] as $field) {
+            if (array_key_exists($field, $values) && $values[$field] !== null && $values[$field] !== '') {
+                $evidence[$field] = $values[$field];
+            }
+        }
+
+        return $evidence;
+    }
+
+    /**
+     * Entity-aware severity. Business significance + unique resolution decide
+     * review vs blocking; the underlying exception is never erased.
+     *
+     * @param  array<string, mixed>  $values
+     * @param  array<string, mixed>|null  $case
+     */
+    private function entityAwareSeverity(string $code, string $entity, array $values, ?array $case, bool $uniquelyResolved): MigrationSeverity
+    {
+        if ($code === AuditExceptionCode::ExactRowDuplicate->value) {
+            return MigrationSeverity::Warning;
+        }
+
+        if (in_array($code, [
+            AuditExceptionCode::CashFakeSp3k->value,
+            AuditExceptionCode::DuplicateDocumentNumber->value,
+            AuditExceptionCode::PotentialPindahKavling->value,
+        ], true)) {
+            // CASH fake SP3K and duplicate document numbers are warnings when
+            // independent resolution is unambiguous; duplicates never merge.
+            return MigrationSeverity::Warning;
+        }
+
+        if (in_array($code, [
+            AuditExceptionCode::ConsumerNikMissing->value,
+            AuditExceptionCode::ConsumerNikInvalid->value,
+            AuditExceptionCode::ConsumerIdentityAmbiguous->value,
+            AuditExceptionCode::UnitNotFound->value,
+            AuditExceptionCode::UnitCodeAmbiguous->value,
+            AuditExceptionCode::MultipleActiveUnitCandidates->value,
+            AuditExceptionCode::FinancingUnresolved->value,
+            AuditExceptionCode::MissingFinancingStatus->value,
+            AuditExceptionCode::MultipleAkad->value,
+            AuditExceptionCode::BastWithoutAkad->value,
+            AuditExceptionCode::PpjbWithoutUpstream->value,
+            AuditExceptionCode::MultipleAuthoritativeApprovalCandidates->value,
+            AuditExceptionCode::MissingRequiredColumn->value,
+            AuditExceptionCode::OrphanBi->value,
+            AuditExceptionCode::OrphanPsjb->value,
+            AuditExceptionCode::OrphanSubmission->value,
+            AuditExceptionCode::OrphanBankProcess->value,
+        ], true)) {
+            return MigrationSeverity::Blocking;
+        }
+
+        if ($code === AuditExceptionCode::SalesCaseAmbiguous->value) {
+            // Blocking unless already uniquely resolvable via trusted NIK or
+            // explicit trusted legacy linkage.
+            if ($uniquelyResolved) {
+                return MigrationSeverity::Review;
+            }
+
+            return MigrationSeverity::Blocking;
+        }
+
+        if ($code === AuditExceptionCode::LifecycleConflict->value) {
+            return MigrationSeverity::Blocking;
+        }
+
+        $isAuthoritativeDateEntity = in_array($entity, ['akad', 'bast'], true)
+            || ($entity === 'proses_bank' && $this->isAuthoritativeApproval($values));
+
+        if ($code === AuditExceptionCode::MissingProcessDate->value) {
+            return $isAuthoritativeDateEntity ? MigrationSeverity::Blocking : MigrationSeverity::Review;
+        }
+
+        if ($code === AuditExceptionCode::InvalidDate->value) {
+            return $isAuthoritativeDateEntity ? MigrationSeverity::Blocking : MigrationSeverity::Review;
+        }
+
+        if ($code === AuditExceptionCode::MissingProcessStatus->value) {
+            $obscuresAuthoritative = $entity === 'proses_bank'
+                || in_array($entity, ['akad', 'bast'], true);
+
+            return $obscuresAuthoritative ? MigrationSeverity::Blocking : MigrationSeverity::Review;
+        }
+
+        if ($code === AuditExceptionCode::UnknownStatusValue->value) {
+            // Intermediate/historical status is review; authoritative outcome
+            // or lifecycle status is blocking.
+            $obscuresAuthoritative = $entity === 'proses_bank'
+                || in_array($entity, ['akad', 'bast'], true);
+
+            return $obscuresAuthoritative ? MigrationSeverity::Blocking : MigrationSeverity::Review;
+        }
+
+        if ($code === AuditExceptionCode::PlaceholderSp3kValue->value) {
+            // Placeholder never treated as SP3K; block only when it prevents
+            // authoritative approval/downstream determination.
+            return ($entity === 'proses_bank' && $this->isAuthoritativeApproval($values))
+                ? MigrationSeverity::Blocking
+                : MigrationSeverity::Review;
+        }
+
+        // Unknown/uncertain severities are surfaced as REVIEW, never silently
+        // upgraded to blocking.
+        return MigrationSeverity::Review;
+    }
+
+    /** @param array<string, mixed> $values */
+    private function isAuthoritativeApproval(array $values): bool
+    {
+        $result = $this->normalizer->statusValue($values['result'] ?? null);
+        $sp3k = Str::upper($this->normalizer->document($values['sp3k_number'] ?? null) ?? '');
+
+        return $result === 'APPROVED'
+            || ($sp3k !== '' && ! in_array($sp3k, ['CASH', 'REJECT', 'REJECTED'], true));
+    }
+
     /** @param array<string, mixed> $sheets
      * @param  array<int, array<string, mixed>>  $cases
      * @return array<string, array<string, int>>
@@ -712,10 +1107,18 @@ class JeparaLegacyAuditor
             'active_transactions' => collect($cases)->where('lifecycle_status', 'ACTIVE')->count(),
         ];
 
+        $lifecycle = [
+            'legacy_upstream_lanjut_snapshot' => collect($this->rowsFromSheet($sheets['data_konsumen'] ?? []))->filter(fn (array $row): bool => Str::upper($this->normalizer->text($row['values']['lifecycle_status'] ?? null) ?? '') === 'LANJUT')->count(),
+            'reconstructed_active' => collect($cases)->where('lifecycle_status', 'ACTIVE')->count(),
+            'reconstructed_completed' => collect($cases)->where('lifecycle_status', 'COMPLETED')->count(),
+            'reconstructed_closed_non_active' => collect($cases)->whereNotIn('lifecycle_status', ['ACTIVE', 'COMPLETED'])->count(),
+        ];
+
         return [
             'legacy_secondary_baseline' => $legacy,
             'reconstructed_candidates' => $reconstructed,
             'differences' => collect($legacy)->map(fn (int $value, string $key): int => ($reconstructed[$key] ?? 0) - $value)->all(),
+            'lifecycle' => $lifecycle,
         ];
     }
 
@@ -725,17 +1128,25 @@ class JeparaLegacyAuditor
      */
     private function firstDate(array $values, array $fields, string $sheet, int $row, array &$exceptions): ?string
     {
+        $emitDateExceptions = $sheet !== 'data_konsumen';
+
         foreach ($fields as $field) {
             if (! array_key_exists($field, $values)) {
                 continue;
             }
             $date = $this->normalizer->date($values[$field]);
-            if (! $date['valid']) {
-                $this->exception($exceptions, AuditExceptionCode::InvalidDate, $sheet, $row, "Tanggal {$field} invalid.");
+            if (! $date['valid'] && ! $date['empty'] && $emitDateExceptions) {
+                $this->exception($exceptions, AuditExceptionCode::InvalidDate, $sheet, $row, "Tanggal {$field} invalid: ".$this->normalizer->text($values[$field]));
             }
-            if (! $date['empty']) {
+            if ($date['valid'] && ! $date['empty']) {
                 return $date['value'];
             }
+        }
+
+        if ($emitDateExceptions) {
+            // A substantive process row with an entirely blank expected date
+            // field is missing evidence — never synthesized or guessed.
+            $this->exception($exceptions, AuditExceptionCode::MissingProcessDate, $sheet, $row, 'Tanggal proses kosong ('.implode('/', $fields).').');
         }
 
         return null;
