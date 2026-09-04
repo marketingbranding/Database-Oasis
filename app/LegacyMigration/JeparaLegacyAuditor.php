@@ -80,9 +80,17 @@ class JeparaLegacyAuditor
                 if (count($caseIndexes) !== 1) {
                     $code = $this->orphanCode($sheet);
                     $this->exception($exceptions, $code, $sheet, $row['row'], count($caseIndexes) > 1 ? 'Lebih dari satu kandidat Sales Case.' : 'Sales Case tidak ditemukan.');
+                    $matches = array_map(fn (int $idx): array => [
+                        'source_candidate_key' => $cases[$idx]['candidate_key'],
+                        'consumer_key' => $cases[$idx]['consumer_key'],
+                        'unit_key' => $cases[$idx]['unit_key'],
+                        'confidence' => $cases[$idx]['confidence'],
+                        'reason' => 'SUGGESTED_MATCH',
+                    ], $caseIndexes);
                     $unresolved[] = $this->trace($sheet, $row, [
                         'reason' => count($caseIndexes) > 1 ? 'AMBIGUOUS' : 'UNRESOLVED',
                         'candidate_count' => count($caseIndexes),
+                        'candidate_matches' => $matches,
                         ...$this->ambiguityDiagnostic($row['values'], $cases),
                     ]);
 
@@ -95,6 +103,7 @@ class JeparaLegacyAuditor
             }
         }
 
+        $this->markAuthoritativeProsesBank($cases);
         $this->resolveFinancingFromDownstreamEvidence($cases, $exceptions);
         $this->classifyDuplicates($sheets, $cases, $documents, $duplicates, $exceptions);
         $this->validateChronology($cases, $chronology, $exceptions);
@@ -314,6 +323,24 @@ class JeparaLegacyAuditor
                 'evidence' => [$consumerKey, $unitKey, 'data_konsumen:'.$row['row']],
                 'dates' => array_filter(['consumer' => $booking]),
                 'process_rows' => ['data_konsumen' => [$row['row']]],
+                'proposed_history' => [
+                    'data_konsumen' => [
+                        [
+                            'source_sheet' => 'data_konsumen',
+                            'source_row' => $row['row'],
+                            'legacy_id' => $legacyLink,
+                            'original_values' => $row['original'] ?? [],
+                            'date_normalized' => $booking,
+                        ],
+                    ],
+                    'bi_checking' => [],
+                    'psjb' => [],
+                    'pemberkasan' => [],
+                    'proses_bank' => [],
+                    'ppjb_dev' => [],
+                    'akad' => [],
+                    'bast' => [],
+                ],
             ];
         }
     }
@@ -573,6 +600,117 @@ class JeparaLegacyAuditor
                 'identity_key' => $caseKey,
             ];
         }
+
+        $this->recordHistoryPayload($sheet, $row, $case, $exceptions);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $case
+     * @param  array<int, array<string, mixed>>  $exceptions
+     */
+    private function recordHistoryPayload(string $sheet, array $row, array &$case, array &$exceptions): void
+    {
+        $values = $row['values'];
+        $legacyLink = $this->normalizer->text($values['legacy_consumer_id'] ?? $values['legacy_id'] ?? null);
+
+        $payload = [
+            'source_sheet' => $sheet,
+            'source_row' => $row['row'],
+            'legacy_id' => $legacyLink,
+            'original_values' => $row['original'] ?? [],
+        ];
+
+        switch ($sheet) {
+            case 'bi_checking':
+                $payload['date_raw'] = $values['bi_date'] ?? $values['date'] ?? null;
+                $payload['date_normalized'] = $this->firstDate($values, ['bi_date', 'date'], $sheet, $row['row'], $exceptions);
+                $payload['result_raw'] = $values['result'] ?? $values['status'] ?? null;
+                $payload['result_normalized'] = $this->normalizer->statusValue($values['result'] ?? $values['status'] ?? null);
+                $payload['notes'] = $this->normalizer->text($values['notes'] ?? null);
+                break;
+
+            case 'psjb':
+                $payload['psjb_number'] = $this->normalizer->document($values['psjb_number'] ?? null);
+                $payload['date_raw'] = $values['psjb_date'] ?? $values['date'] ?? null;
+                $payload['date_normalized'] = $this->firstDate($values, ['psjb_date', 'date'], $sheet, $row['row'], $exceptions);
+                $payload['status'] = Str::upper($this->normalizer->text($values['status'] ?? null) ?? 'ACTIVE');
+                $payload['notes'] = $this->normalizer->text($values['notes'] ?? null);
+                break;
+
+            case 'pemberkasan':
+                $payload['bank_name'] = $this->normalizer->text($values['bank'] ?? null);
+                $payload['date_raw'] = $values['submission_date'] ?? $values['date'] ?? null;
+                $payload['date_normalized'] = $this->firstDate($values, ['submission_date', 'date'], $sheet, $row['row'], $exceptions);
+                $payload['sequence'] = count($case['proposed_history']['pemberkasan'] ?? []) + 1;
+                $payload['notes'] = $this->normalizer->text($values['notes'] ?? null);
+                break;
+
+            case 'proses_bank':
+                $sp3kRaw = $this->normalizer->document($values['sp3k_number'] ?? null);
+                $sp3kUpper = Str::upper($sp3kRaw ?? '');
+                $validSp3k = ($sp3kRaw !== null && ! in_array($sp3kUpper, ['CASH', 'REJECT', 'REJECTED'], true)) ? $sp3kRaw : null;
+                $payload['bank_name'] = $this->normalizer->text($values['bank'] ?? null);
+                $payload['response_raw'] = $values['result'] ?? $values['status'] ?? null;
+                $payload['response_normalized'] = $this->normalizer->statusValue($values['result'] ?? $values['status'] ?? null);
+                $payload['response_date_raw'] = $values['response_date'] ?? $values['date'] ?? null;
+                $payload['response_date_normalized'] = $this->firstDate($values, ['response_date', 'date'], $sheet, $row['row'], $exceptions);
+                $payload['sp3k_number'] = $validSp3k;
+                $payload['sp3k_date_raw'] = $values['sp3k_date'] ?? null;
+                $payload['sp3k_date_normalized'] = $this->firstDate($values, ['sp3k_date'], $sheet, $row['row'], $exceptions);
+                $payload['is_authoritative'] = false;
+                $payload['notes'] = $this->normalizer->text($values['notes'] ?? null);
+                break;
+
+            case 'ppjb_dev':
+                $payload['document_number'] = $this->normalizer->document($values['ppjb_number'] ?? null);
+                $payload['date_raw'] = $values['ppjb_date'] ?? $values['date'] ?? null;
+                $payload['date_normalized'] = $this->firstDate($values, ['ppjb_date', 'date'], $sheet, $row['row'], $exceptions);
+                $payload['notes'] = $this->normalizer->text($values['notes'] ?? null);
+                break;
+
+            case 'akad':
+                $payload['document_number'] = $this->normalizer->document($values['akad_number'] ?? null);
+                $payload['date_raw'] = $values['akad_date'] ?? $values['date'] ?? null;
+                $payload['date_normalized'] = $this->firstDate($values, ['akad_date', 'date'], $sheet, $row['row'], $exceptions);
+                $payload['notes'] = $this->normalizer->text($values['notes'] ?? null);
+                break;
+
+            case 'bast':
+                $payload['document_number'] = $this->normalizer->document($values['bast_number'] ?? null);
+                $payload['date_raw'] = $values['bast_date'] ?? $values['date'] ?? null;
+                $payload['date_normalized'] = $this->firstDate($values, ['bast_date', 'date'], $sheet, $row['row'], $exceptions);
+                $payload['status'] = Str::upper($this->normalizer->text($values['status'] ?? null) ?? 'COMPLETED');
+                $payload['notes'] = $this->normalizer->text($values['notes'] ?? null);
+                break;
+        }
+
+        $case['proposed_history'][$sheet][] = $payload;
+    }
+
+    /** @param array<int, array<string, mixed>> $cases */
+    private function markAuthoritativeProsesBank(array &$cases): void
+    {
+        foreach ($cases as &$case) {
+            $pbRows = $case['proposed_history']['proses_bank'] ?? [];
+            if ($pbRows === []) {
+                continue;
+            }
+
+            $approvedIndices = [];
+            foreach ($pbRows as $idx => $pb) {
+                if (($pb['response_normalized'] ?? null) === 'APPROVED' && ($pb['sp3k_number'] ?? null) !== null) {
+                    $approvedIndices[] = $idx;
+                }
+            }
+
+            if (count($approvedIndices) === 1) {
+                $case['proposed_history']['proses_bank'][$approvedIndices[0]]['is_authoritative'] = true;
+            } elseif (count($approvedIndices) > 1) {
+                $lastIdx = end($approvedIndices);
+                $case['proposed_history']['proses_bank'][$lastIdx]['is_authoritative'] = true;
+            }
+        }
     }
 
     /**
@@ -729,14 +867,18 @@ class JeparaLegacyAuditor
      */
     private function validateChronology(array $cases, array &$chronology, array &$exceptions): void
     {
-        $order = ['consumer', 'bi_checking', 'psjb', 'pemberkasan', 'proses_bank', 'ppjb_dev', 'akad', 'bast'];
+        $order = ['consumer', 'bi_checking', 'psjb', 'bank_chain', 'ppjb_dev', 'akad', 'bast'];
         foreach ($cases as $case) {
             $previousDate = null;
             $previousStage = null;
             foreach ($order as $stage) {
                 $dates = [];
                 foreach ($case['dates'] as $key => $date) {
-                    $matches = $stage === 'consumer' ? $key === 'consumer' : str_starts_with((string) $key, $stage.':');
+                    $matches = match ($stage) {
+                        'consumer' => $key === 'consumer',
+                        'bank_chain' => str_starts_with((string) $key, 'pemberkasan:') || str_starts_with((string) $key, 'proses_bank:'),
+                        default => str_starts_with((string) $key, $stage.':'),
+                    };
                     if ($matches) {
                         $dates[] = $date;
                     }

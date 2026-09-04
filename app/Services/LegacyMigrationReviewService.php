@@ -6,6 +6,7 @@ use App\Enums\LegacyResolutionType;
 use App\Enums\MigrationExceptionSeverity;
 use App\MigrationReadiness;
 use App\MigrationReviewDecision;
+use App\Models\Bank;
 use App\Models\LegacyMigrationCandidate;
 use App\Models\LegacyMigrationResolution;
 use App\Models\LegacyMigrationReview;
@@ -21,7 +22,7 @@ class LegacyMigrationReviewService
 {
     public function review(LegacyMigrationCandidate $candidate, User $user, MigrationReviewDecision $decision, string $reason): LegacyMigrationReview
     {
-        if ($candidate->readiness !== MigrationReadiness::Review) {
+        if (app(LegacyMigrationReadinessService::class)->calculate($candidate) !== MigrationReadiness::Review) {
             throw ValidationException::withMessages(['readiness' => 'Hanya kandidat REVIEW yang dapat di-review melalui alur standar.']);
         }
 
@@ -68,6 +69,22 @@ class LegacyMigrationReviewService
 
         if (! app(LegacyResolutionCompatibilityService::class)->isCompatible($exceptionCode, $resolutionType)) {
             throw ValidationException::withMessages(['resolution_type' => "Resolution {$resolutionType->value} tidak kompatibel dengan {$exceptionCode}."]);
+        }
+
+        if ($resolutionType === LegacyResolutionType::MapBank) {
+            $bankId = $selectedValue['bank_id'] ?? null;
+            if ($bankId === null || ! Bank::whereKey($bankId)->exists()) {
+                throw ValidationException::withMessages(['bank_id' => 'MAP_BANK memerlukan bank_id yang menunjuk ke Bank aktif.']);
+            }
+
+            $firstException = $candidate->exceptions()->where('code', $exceptionCode)->first();
+            if ($firstException !== null) {
+                $selectedValue = array_merge($selectedValue, [
+                    'source_sheet' => $firstException->source_sheet,
+                    'source_row' => $firstException->source_row,
+                    'bank_name' => $firstException->evidence['bank_name'] ?? null,
+                ]);
+            }
         }
 
         if (! $this->fingerprintMatches($candidate)) {

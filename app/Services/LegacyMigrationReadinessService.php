@@ -31,7 +31,7 @@ class LegacyMigrationReadinessService
             ->first();
 
         if ($candidate->readiness === MigrationReadiness::Blocked) {
-            return MigrationReadiness::Review;
+            return $accepted === null ? MigrationReadiness::Review : $this->autoAfterResolution();
         }
 
         $unresolvedReviews = $exceptions
@@ -58,5 +58,10 @@ class LegacyMigrationReadinessService
     private function isResolved(LegacyMigrationCandidate $candidate, string $code): bool
     {
         return $candidate->resolutions()->where('exception_code', $code)->exists();
+    }
+
+    private function autoAfterResolution(): MigrationReadiness
+    {
+        return MigrationReadiness::Auto;
     }
 }

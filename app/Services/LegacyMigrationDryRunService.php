@@ -127,7 +127,7 @@ class LegacyMigrationDryRunService
 
         if ($financing === 'CASH') {
             $counts['cash_cases'] = 1;
-            if ($counts['pemberkasan_records'] > 0 || $counts['bank_process_records'] > 0 || $counts['authoritative_sp3k'] > 0) {
+            if ($counts['bank_process_records'] > 0 || $counts['authoritative_sp3k'] > 0) {
                 return ['counts' => $zero, 'error' => 'CASH candidate carries bank/SP3K evidence'];
             }
         }

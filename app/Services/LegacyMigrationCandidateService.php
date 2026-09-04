@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\MigrationExceptionSeverity;
+use App\LegacyMigration\AuditExceptionCode;
 use App\MigrationBatchStatus;
+use App\Models\Bank;
 use App\Models\LegacyMigrationBatch;
 use App\Models\LegacyMigrationCandidate;
 use App\Models\LegacyMigrationCandidateException;
@@ -59,7 +62,7 @@ class LegacyMigrationCandidateService
                     'proposed_consumer' => $consumers->get($case['consumer_key'] ?? null, ['candidate_key' => $case['consumer_key'] ?? null]),
                     'proposed_unit' => $units->get($case['unit_key'] ?? null, ['candidate_key' => $case['unit_key'] ?? null]),
                     'proposed_sales_case' => $case,
-                    'proposed_history' => $case['process_rows'] ?? [],
+                    'proposed_history' => $case['proposed_history'] ?? $case['process_rows'] ?? [],
                     'confidence' => $case['confidence'],
                     'readiness' => $analysisRow['readiness'],
                     'lifecycle' => $case['lifecycle_status'],
@@ -83,6 +86,24 @@ class LegacyMigrationCandidateService
                         'evidence' => $exception['evidence'],
                     ]);
                 }
+
+                if (! in_array($candidate->financing_type, ['CASH'], true)) {
+                    foreach ($this->bankMappingExceptions($case) as $bankException) {
+                        LegacyMigrationCandidateException::create([
+                            'candidate_id' => $candidate->id,
+                            'code' => $bankException['code'],
+                            'severity' => MigrationExceptionSeverity::Blocking->value,
+                            'source_sheet' => $bankException['source_sheet'],
+                            'source_row' => $bankException['source_row'],
+                            'entity_type' => $bankException['source_sheet'],
+                            'message' => "Bank '{$bankException['bank_name']}' tidak dapat di-resolve secara deterministik.",
+                            'evidence' => [
+                                'code' => $bankException['code'],
+                                'bank_name' => $bankException['bank_name'],
+                            ],
+                        ]);
+                    }
+                }
             }
 
             foreach ($report['unresolved_records'] as $orphan) {
@@ -102,6 +123,7 @@ class LegacyMigrationCandidateService
                     'normalized_evidence' => $orphan,
                     'candidate_matches' => [
                         'count' => $orphan['candidate_count'] ?? 0,
+                        'matches' => $orphan['candidate_matches'] ?? [],
                         'consumer_candidates' => $orphan['consumer_candidate_count'] ?? 0,
                         'unit_candidates' => $orphan['unit_candidate_count'] ?? 0,
                     ],
@@ -111,6 +133,45 @@ class LegacyMigrationCandidateService
 
             return $batch;
         });
+    }
+
+    /** @param array<string, mixed> $case
+     * @return array<int, array{code: string, source_sheet: string, source_row: int|null, bank_name: string}>
+     */
+    private function bankMappingExceptions(array $case): array
+    {
+        $rows = [];
+
+        foreach (['pemberkasan', 'proses_bank'] as $sheet) {
+            foreach ($case['proposed_history'][$sheet] ?? [] as $row) {
+                $bankName = $row['bank_name'] ?? null;
+                if ($bankName === null || trim((string) $bankName) === '') {
+                    continue;
+                }
+
+                $distance = Bank::whereRaw('LOWER(name) = ?', [mb_strtolower(trim((string) $bankName))])
+                    ->orWhereRaw('LOWER(code) = ?', [mb_strtolower(trim((string) $bankName))])
+                    ->count();
+
+                if ($distance === 0) {
+                    $rows[] = [
+                        'code' => AuditExceptionCode::BankNotFound->value,
+                        'source_sheet' => $sheet,
+                        'source_row' => $row['source_row'] ?? null,
+                        'bank_name' => trim((string) $bankName),
+                    ];
+                } elseif ($distance > 1) {
+                    $rows[] = [
+                        'code' => AuditExceptionCode::BankAmbiguous->value,
+                        'source_sheet' => $sheet,
+                        'source_row' => $row['source_row'] ?? null,
+                        'bank_name' => trim((string) $bankName),
+                    ];
+                }
+            }
+        }
+
+        return $rows;
     }
 
     private function orphanCode(string $sheet, string $reason): string

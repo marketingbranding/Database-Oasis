@@ -9,6 +9,7 @@ enum LegacyResolutionType: string implements HasLabel
     case MapConsumer = 'MAP_CONSUMER';
     case CorrectNik = 'CORRECT_NIK';
     case MapUnit = 'MAP_UNIT';
+    case MapBank = 'MAP_BANK';
     case ResolveUnitConflict = 'RESOLVE_UNIT_CONFLICT';
     case LinkSalesCase = 'LINK_SALES_CASE';
     case LinkOrphanRecord = 'LINK_ORPHAN_RECORD';
@@ -25,6 +26,7 @@ enum LegacyResolutionType: string implements HasLabel
             self::MapConsumer => 'Map Consumer',
             self::CorrectNik => 'Correct NIK',
             self::MapUnit => 'Map Unit',
+            self::MapBank => 'Map Bank',
             self::ResolveUnitConflict => 'Resolve Unit Conflict',
             self::LinkSalesCase => 'Link Sales Case',
             self::LinkOrphanRecord => 'Link Orphan Record',
