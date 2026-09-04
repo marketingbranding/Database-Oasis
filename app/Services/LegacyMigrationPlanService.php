@@ -535,6 +535,11 @@ class LegacyMigrationPlanService
             return $direct;
         }
 
+        $shared = app(LegacyMigrationBankMappingService::class)->resolve($candidate->batch, $bankName);
+        if ($shared !== null) {
+            return $shared;
+        }
+
         $mapped = $candidate->resolutions()
             ->where('resolution_type', LegacyResolutionType::MapBank->value)
             ->get()
@@ -595,7 +600,10 @@ class LegacyMigrationPlanService
     {
         $reviews = $batch->candidates()->with('reviews')->get()->flatMap(fn ($candidate) => $candidate->reviews()->get(['decision', 'reviewed_at', 'source_fingerprint'])->toArray())->values();
         $resolutions = $batch->candidates()->with('resolutions')->get()->flatMap(fn ($candidate) => $candidate->resolutions()->get(['exception_code', 'resolution_type', 'resolved_at'])->toArray())->values();
+        $bankMappings = $batch->bankMappings()->orderBy('normalized_alias')->get([
+            'normalized_alias', 'target_bank_id', 'approved_at', 'source_fingerprint', 'audit_fingerprint',
+        ])->toArray();
 
-        return hash('sha256', json_encode(['reviews' => $reviews, 'resolutions' => $resolutions], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode(['reviews' => $reviews, 'resolutions' => $resolutions, 'bank_mappings' => $bankMappings], JSON_THROW_ON_ERROR));
     }
 }

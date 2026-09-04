@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MigrationExceptionSeverity;
 use App\LegacyMigration\AuditExceptionCode;
 use App\MigrationBatchStatus;
+use App\MigrationReadiness;
 use App\Models\Bank;
 use App\Models\LegacyMigrationBatch;
 use App\Models\LegacyMigrationCandidate;
@@ -52,6 +53,8 @@ class LegacyMigrationCandidateService
                 'created_by' => $user->id,
             ]);
 
+            $this->applyApprovedJeparaBankMappings($batch, $user);
+
             foreach ($cases as $candidateKey => $case) {
                 $analysisRow = $candidateAnalysis[$candidateKey] ?? ['readiness' => 'BLOCKED', 'blocker_count' => 0, 'review_count' => 0];
 
@@ -88,7 +91,7 @@ class LegacyMigrationCandidateService
                 }
 
                 if (! in_array($candidate->financing_type, ['CASH'], true)) {
-                    foreach ($this->bankMappingExceptions($case) as $bankException) {
+                    foreach ($this->bankMappingExceptions($batch, $case) as $bankException) {
                         LegacyMigrationCandidateException::create([
                             'candidate_id' => $candidate->id,
                             'code' => $bankException['code'],
@@ -103,6 +106,31 @@ class LegacyMigrationCandidateService
                             ],
                         ]);
                     }
+                }
+
+                $previousKey = $case['previous_case_candidate'] ?? null;
+                if ($previousKey !== null && ($candidateAnalysis[$previousKey]['readiness'] ?? 'BLOCKED') !== 'AUTO') {
+                    LegacyMigrationCandidateException::create([
+                        'candidate_id' => $candidate->id,
+                        'code' => AuditExceptionCode::PreviousCaseDependencyNotReady->value,
+                        'severity' => MigrationExceptionSeverity::Blocking->value,
+                        'source_sheet' => 'data_konsumen',
+                        'source_row' => $case['process_rows']['data_konsumen'][0] ?? null,
+                        'entity_type' => 'data_konsumen',
+                        'message' => "Kandidat predecessor {$previousKey} belum AUTO/eligible dalam plan.",
+                        'evidence' => ['previous_case_candidate' => $previousKey],
+                    ]);
+                }
+
+                // Newly added BLOCKING exceptions (bank mapping, pindah
+                // dependency) were not present when the audit assigned stored
+                // readiness. Downgrade so stored readiness stays consistent
+                // with the recalculated readiness layer.
+                $hasBlocking = $candidate->exceptions()
+                    ->where('severity', MigrationExceptionSeverity::Blocking->value)
+                    ->exists();
+                if ($hasBlocking && in_array($candidate->readiness->value, ['AUTO', 'REVIEW'], true)) {
+                    $candidate->update(['readiness' => MigrationReadiness::Blocked]);
                 }
             }
 
@@ -135,17 +163,39 @@ class LegacyMigrationCandidateService
         });
     }
 
+    private function applyApprovedJeparaBankMappings(LegacyMigrationBatch $batch, User $user): void
+    {
+        $service = app(LegacyMigrationBankMappingService::class);
+        foreach ([
+            'BTN' => 'BTN',
+            'BSN' => 'BTNS',
+            'BANK BRI' => 'BRI',
+            'BANK JATENG' => 'BJTG',
+            'BNI' => 'BNI',
+        ] as $raw => $code) {
+            $bank = Bank::where('code', $code)->where('is_active', true)->first();
+            if ($bank !== null) {
+                $service->approve($batch, $raw, $bank, $user, "Approved Jepara canonical alias: {$raw} → {$bank->name}");
+            }
+        }
+    }
+
     /** @param array<string, mixed> $case
      * @return array<int, array{code: string, source_sheet: string, source_row: int|null, bank_name: string}>
      */
-    private function bankMappingExceptions(array $case): array
+    private function bankMappingExceptions(LegacyMigrationBatch $batch, array $case): array
     {
         $rows = [];
+        $mappingService = app(LegacyMigrationBankMappingService::class);
 
         foreach (['pemberkasan', 'proses_bank'] as $sheet) {
             foreach ($case['proposed_history'][$sheet] ?? [] as $row) {
                 $bankName = $row['bank_name'] ?? null;
-                if ($bankName === null || trim((string) $bankName) === '') {
+                if ($bankName === null || trim((string) $bankName) === '' || mb_strtolower(trim((string) $bankName)) === 'cash') {
+                    continue;
+                }
+
+                if ($mappingService->resolve($batch, (string) $bankName) !== null) {
                     continue;
                 }
 

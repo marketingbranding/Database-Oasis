@@ -33,6 +33,7 @@ class LegacyResolutionCompatibilityService
         'PLACEHOLDER_SP3K_VALUE' => [LegacyResolutionType::SelectAuthoritativeBankAttempt, LegacyResolutionType::ExcludeSourceRecord],
         'PPJB_WITHOUT_UPSTREAM' => [LegacyResolutionType::LinkSalesCase, LegacyResolutionType::ExcludeSourceRecord],
         'BAST_WITHOUT_AKAD' => [LegacyResolutionType::LinkSalesCase, LegacyResolutionType::ExcludeSourceRecord],
+        'PREVIOUS_CASE_DEPENDENCY_NOT_READY' => [LegacyResolutionType::ExcludeSourceRecord],
     ];
 
     /** @return array<int, LegacyResolutionType> */

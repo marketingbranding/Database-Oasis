@@ -18,6 +18,7 @@ enum AuditExceptionCode: string
     case OrphanBankProcess = 'ORPHAN_BANK_PROCESS';
     case BankNotFound = 'BANK_NOT_FOUND';
     case BankAmbiguous = 'BANK_AMBIGUOUS';
+    case PreviousCaseDependencyNotReady = 'PREVIOUS_CASE_DEPENDENCY_NOT_READY';
     case MultipleAuthoritativeApprovalCandidates = 'MULTIPLE_AUTHORITATIVE_APPROVAL_CANDIDATES';
     case CashFakeSp3k = 'CASH_FAKE_SP3K';
     case PlaceholderSp3kValue = 'PLACEHOLDER_SP3K_VALUE';

@@ -16,5 +16,7 @@ class DatabaseSeeder extends Seeder
         foreach (UserRole::cases() as $role) {
             Role::findOrCreate($role->value);
         }
+
+        $this->call(BankSeeder::class);
     }
 }

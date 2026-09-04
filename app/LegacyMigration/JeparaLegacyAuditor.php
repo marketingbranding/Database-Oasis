@@ -1271,11 +1271,15 @@ class JeparaLegacyAuditor
     private function firstDate(array $values, array $fields, string $sheet, int $row, array &$exceptions): ?string
     {
         $emitDateExceptions = $sheet !== 'data_konsumen';
+        $presentButMissing = false;
 
         foreach ($fields as $field) {
             if (! array_key_exists($field, $values)) {
+                // Structurally absent field (e.g. response_date on proses_bank)
+                // is not "missing" — another field may carry the business date.
                 continue;
             }
+            $presentButMissing = true;
             $date = $this->normalizer->date($values[$field]);
             if (! $date['valid'] && ! $date['empty'] && $emitDateExceptions) {
                 $this->exception($exceptions, AuditExceptionCode::InvalidDate, $sheet, $row, "Tanggal {$field} invalid: ".$this->normalizer->text($values[$field]));
@@ -1285,8 +1289,8 @@ class JeparaLegacyAuditor
             }
         }
 
-        if ($emitDateExceptions) {
-            // A substantive process row with an entirely blank expected date
+        if ($emitDateExceptions && $presentButMissing) {
+            // A substantive process row with a present-but-blank expected date
             // field is missing evidence — never synthesized or guessed.
             $this->exception($exceptions, AuditExceptionCode::MissingProcessDate, $sheet, $row, 'Tanggal proses kosong ('.implode('/', $fields).').');
         }

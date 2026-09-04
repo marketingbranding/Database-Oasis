@@ -49,6 +49,12 @@ class LegacyMigrationBatch extends Model
         return $this->hasMany(LegacyMigrationPlan::class, 'batch_id');
     }
 
+    /** @return HasMany<LegacyMigrationBankMapping, $this> */
+    public function bankMappings(): HasMany
+    {
+        return $this->hasMany(LegacyMigrationBankMapping::class, 'batch_id');
+    }
+
     /** @return HasMany<LegacyMigrationProvenance, $this> */
     public function provenances(): HasMany
     {
