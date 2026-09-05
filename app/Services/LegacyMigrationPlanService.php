@@ -301,7 +301,7 @@ class LegacyMigrationPlanService
         // 7. Pemberkasan / Document Submissions
         $subRows = $this->normalizeHistoryRows($history['pemberkasan'] ?? [], 'pemberkasan');
         $lastSubPlanKey = null;
-        $submissionPlanKeysByBank = [];
+        $submissionByLegacyId = [];
         if ($financing === 'CASH') {
             foreach ($subRows as $idx => $sub) {
                 $cashSubPlanKey = $salesCasePlanKey.'_cash_sub_'.($sub['source_row'] ?? $idx);
@@ -329,8 +329,17 @@ class LegacyMigrationPlanService
                 $lastSubPlanKey = $subPlanKey;
                 $bankName = $sub['bank_name'] ?? null;
                 $bank = $this->resolveBankForCandidate($candidate, $bankName, 'pemberkasan', $sub['source_row'] ?? null);
-                if ($bankName !== null) {
-                    $submissionPlanKeysByBank[mb_strtolower(trim($bankName))][] = $subPlanKey;
+                $submissionNumber = $sub['submission_number'] ?? null;
+                if ($submissionNumber !== null) {
+                    if (isset($submissionByLegacyId[$submissionNumber])) {
+                        throw ValidationException::withMessages([
+                            'bank_attempt' => "Pemberkasan id_berkas {$submissionNumber} tidak unik pada kandidat {$candidate->source_candidate_key}.",
+                        ]);
+                    }
+                    $submissionByLegacyId[$submissionNumber] = [
+                        'plan_key' => $subPlanKey,
+                        'bank_id' => $bank?->id,
+                    ];
                 }
                 if ($bankName !== null && $bank === null) {
                     throw ValidationException::withMessages(['bank' => "Bank '{$bankName}' pada kandidat {$candidate->source_candidate_key} tidak ditemukan di database."]);
@@ -360,18 +369,24 @@ class LegacyMigrationPlanService
             $bpRows = $this->normalizeHistoryRows($history['proses_bank'] ?? [], 'proses_bank');
             foreach ($bpRows as $idx => $bp) {
                 $bpPlanKey = $salesCasePlanKey.'_bp_'.($bp['source_row'] ?? $idx);
-                $bankName = $bp['bank_name'] ?? null;
-                $bank = $this->resolveBankForCandidate($candidate, $bankName, 'proses_bank', $bp['source_row'] ?? null);
-                if ($bankName !== null && $bank === null) {
-                    throw ValidationException::withMessages(['bank' => "Bank '{$bankName}' pada kandidat {$candidate->source_candidate_key} tidak ditemukan di database."]);
+                $submissionNumber = $bp['submission_number'] ?? null;
+                $submissionMatch = $submissionNumber !== null ? ($submissionByLegacyId[$submissionNumber] ?? null) : null;
+                if ($submissionMatch === null) {
+                    throw ValidationException::withMessages([
+                        'bank_attempt' => "Bank Process row {$bp['source_row']} tidak memiliki linkage id_berkas unik ke Pemberkasan.",
+                    ]);
+                }
+                $bank = $submissionMatch['bank_id'] !== null ? Bank::find($submissionMatch['bank_id']) : null;
+                if ($bank === null || ! $bank->is_active) {
+                    throw ValidationException::withMessages([
+                        'bank_attempt' => "Bank Process row {$bp['source_row']} tidak memiliki canonical Bank aktif dari Pemberkasan terkait.",
+                    ]);
                 }
                 $isAuth = (bool) ($bp['is_authoritative'] ?? false);
                 if ($isAuth) {
                     $authoritativeBpPlanKey = $bpPlanKey;
                 }
-                $normalizedBankName = $bankName === null ? null : mb_strtolower(trim($bankName));
-                $matchingSubmissionKeys = $normalizedBankName === null ? [] : ($submissionPlanKeysByBank[$normalizedBankName] ?? []);
-                $submissionPlanKey = $matchingSubmissionKeys === [] ? null : end($matchingSubmissionKeys);
+                $submissionPlanKey = $submissionMatch['plan_key'];
 
                 $ops[] = [
                     'type' => LegacyMigrationPlanOperationType::CreateBankProcess,
@@ -381,8 +396,8 @@ class LegacyMigrationPlanService
                         'submission_plan_key' => $submissionPlanKey,
                         'source_sheet' => 'proses_bank',
                         'source_row' => $bp['source_row'] ?? null,
-                        'bank_id' => $bank?->id,
-                        'bank_name' => $bank !== null ? $bank->name : $bankName,
+                        'bank_id' => $bank->id,
+                        'bank_name' => $bank->name,
                         'response_type' => $bp['response_normalized'] ?? 'PROCESS',
                         'response_date' => $bp['response_date_normalized'] ?? null,
                         'legacy_date_missing' => ($bp['response_date_normalized'] ?? null) === null,

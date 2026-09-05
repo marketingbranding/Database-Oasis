@@ -6,6 +6,7 @@ use App\Enums\LegacyMigrationPlanOperationType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property array<string, mixed> $payload */
 #[Fillable(['plan_id', 'candidate_id', 'orphan_id', 'operation_type', 'payload', 'sequence', 'error'])]
 class LegacyMigrationPlanOperation extends Model
 {

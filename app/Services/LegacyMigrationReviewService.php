@@ -7,9 +7,11 @@ use App\Enums\MigrationExceptionSeverity;
 use App\MigrationReadiness;
 use App\MigrationReviewDecision;
 use App\Models\Bank;
+use App\Models\Consumer;
 use App\Models\LegacyMigrationCandidate;
 use App\Models\LegacyMigrationResolution;
 use App\Models\LegacyMigrationReview;
+use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -71,12 +73,9 @@ class LegacyMigrationReviewService
             throw ValidationException::withMessages(['resolution_type' => "Resolution {$resolutionType->value} tidak kompatibel dengan {$exceptionCode}."]);
         }
 
-        if ($resolutionType === LegacyResolutionType::MapBank) {
-            $bankId = $selectedValue['bank_id'] ?? null;
-            if ($bankId === null || ! Bank::whereKey($bankId)->exists()) {
-                throw ValidationException::withMessages(['bank_id' => 'MAP_BANK memerlukan bank_id yang menunjuk ke Bank aktif.']);
-            }
+        $this->validateResolutionPayload($resolutionType, $exceptionCode, $candidate, $selectedValue);
 
+        if ($resolutionType === LegacyResolutionType::MapBank) {
             $firstException = $candidate->exceptions()->where('code', $exceptionCode)->first();
             if ($firstException !== null) {
                 $selectedValue = array_merge($selectedValue, [
@@ -111,5 +110,86 @@ class LegacyMigrationReviewService
         $batchSourceFingerprint = (string) $candidate->batch()->value('source_fingerprint');
 
         return hash_equals($candidate->source_fingerprint, $batchSourceFingerprint);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $selectedValue
+     */
+    private function validateResolutionPayload(
+        LegacyResolutionType $resolutionType,
+        string $exceptionCode,
+        LegacyMigrationCandidate $candidate,
+        ?array $selectedValue,
+    ): void {
+        match ($resolutionType) {
+            LegacyResolutionType::CorrectNik => $this->requireValidNik($selectedValue),
+            LegacyResolutionType::MapConsumer => $this->requireExistingConsumer($selectedValue),
+            LegacyResolutionType::MapUnit => $this->requireExistingUnit($selectedValue),
+            LegacyResolutionType::MapBank => $this->requireActiveBank($selectedValue),
+            LegacyResolutionType::SupplyMissingDate => $this->requireDate($selectedValue),
+            LegacyResolutionType::ResolveLifecycle => $this->requireReason($selectedValue),
+            LegacyResolutionType::ResolveMultipleAkad => $this->requireSelectedValue($selectedValue),
+            LegacyResolutionType::SelectAuthoritativeBankAttempt => $this->requireSelectedValue($selectedValue),
+            default => null,
+        };
+    }
+
+    /** @param array<string, mixed>|null $value */
+    private function requireValidNik(?array $value): void
+    {
+        $nik = preg_replace('/\D+/', '', (string) ($value['nik'] ?? ''));
+        if (strlen($nik) !== 16) {
+            throw ValidationException::withMessages(['nik' => 'CORRECT_NIK memerlukan NIK 16 digit yang valid.']);
+        }
+    }
+
+    /** @param array<string, mixed>|null $value */
+    private function requireExistingConsumer(?array $value): void
+    {
+        if (($value['consumer_id'] ?? null) === null || ! Consumer::whereKey($value['consumer_id'])->exists()) {
+            throw ValidationException::withMessages(['consumer_id' => 'MAP_CONSUMER memerlukan consumer_id yang valid.']);
+        }
+    }
+
+    /** @param array<string, mixed>|null $value */
+    private function requireExistingUnit(?array $value): void
+    {
+        if (($value['unit_id'] ?? null) === null || ! Unit::whereKey($value['unit_id'])->exists()) {
+            throw ValidationException::withMessages(['unit_id' => 'MAP_UNIT memerlukan unit_id yang valid.']);
+        }
+    }
+
+    /** @param array<string, mixed>|null $value */
+    private function requireActiveBank(?array $value): void
+    {
+        $bankId = $value['bank_id'] ?? null;
+        if ($bankId === null || ! Bank::whereKey($bankId)->where('is_active', true)->exists()) {
+            throw ValidationException::withMessages(['bank_id' => 'MAP_BANK memerlukan bank_id yang menunjuk ke Bank aktif.']);
+        }
+    }
+
+    /** @param array<string, mixed>|null $value */
+    private function requireDate(?array $value): void
+    {
+        $date = $value['date'] ?? null;
+        if ($date === null || strtotime((string) $date) === false) {
+            throw ValidationException::withMessages(['date' => 'SUPPLY_MISSING_DATE memerlukan tanggal yang valid.']);
+        }
+    }
+
+    /** @param array<string, mixed>|null $value */
+    private function requireReason(?array $value): void
+    {
+        if (blank($value['reason'] ?? null) && blank($value['note'] ?? null)) {
+            throw ValidationException::withMessages(['reason' => 'RESOLVE_LIFECYCLE memerlukan alasan wajib.']);
+        }
+    }
+
+    /** @param array<string, mixed>|null $value */
+    private function requireSelectedValue(?array $value): void
+    {
+        if ($value === null || $value === []) {
+            throw ValidationException::withMessages(['selected_value' => 'Resolution ini memerlukan selected_value.']);
+        }
     }
 }

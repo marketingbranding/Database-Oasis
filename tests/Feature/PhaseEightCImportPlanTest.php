@@ -97,18 +97,18 @@ class PhaseEightCImportPlanTest extends TestCase
         ]);
 
         $this->writeCsv('pemberkasan.csv', [
-            ['legacy_id', 'bank', 'tanggal_pemberkasan', 'catatan'],
-            ['K-001', 'BCA', '2026-01-10', 'Pemberkasan K-001'],
-            ['K-002', 'BTN', '2026-01-11', 'Attempt 1 BTN'],
-            ['K-002', 'BRI', '2026-01-15', 'Attempt 2 BRI'],
-            ['K-003', '', '2026-01-12', 'Pemberkasan CASH K-003'],
+            ['legacy_id', 'id_berkas', 'bank', 'tanggal_pemberkasan', 'catatan'],
+            ['K-001', 'BERKAS-001', 'BCA', '2026-01-10', 'Pemberkasan K-001'],
+            ['K-002', 'BERKAS-002-A', 'BTN', '2026-01-11', 'Attempt 1 BTN'],
+            ['K-002', 'BERKAS-002-B', 'BRI', '2026-01-15', 'Attempt 2 BRI'],
+            ['K-003', 'BERKAS-003', '', '2026-01-12', 'Pemberkasan CASH K-003'],
         ]);
 
         $this->writeCsv('proses_bank.csv', [
-            ['legacy_id', 'bank', 'hasil', 'tanggal_response', 'nomor_sp3k', 'tanggal_sp3k'],
-            ['K-001', 'BCA', 'APPROVED', '2026-01-15', 'SP3K-001', '2026-01-15'],
-            ['K-002', 'BTN', 'REJECTED', '2026-01-13', '', ''],
-            ['K-002', 'BRI', 'APPROVED', '2026-01-18', 'SP3K-002', '2026-01-18'],
+            ['legacy_id', 'id_berkas', 'bank', 'hasil', 'tanggal_response', 'nomor_sp3k', 'tanggal_sp3k'],
+            ['K-001', 'BERKAS-001', 'BCA', 'APPROVED', '2026-01-15', 'SP3K-001', '2026-01-15'],
+            ['K-002', 'BERKAS-002-A', 'BTN', 'REJECTED', '2026-01-13', '', ''],
+            ['K-002', 'BERKAS-002-B', 'BRI', 'APPROVED', '2026-01-18', 'SP3K-002', '2026-01-18'],
         ]);
 
         $this->writeCsv('ppjb_dev.csv', [
@@ -333,6 +333,9 @@ class PhaseEightCImportPlanTest extends TestCase
         $result = app(LegacyMigrationImportService::class)->execute($plan);
 
         $this->assertSame($plan->summary_totals['sales_cases'], $result['counts']['sales_cases']);
+        $this->assertSame($plan->operations()->where('operation_type', LegacyMigrationPlanOperationType::CreateSalesCase)->count(), $result['inserted_sales_cases']);
+        $this->assertSame($result['counts']['sales_cases'], $result['inserted']['sales_cases']);
+        $this->assertSame($result['counts']['bank'], $result['inserted']['bank']);
         $this->assertGreaterThan(0, $result['counts']['consumers_created']);
         $this->assertGreaterThan(0, LegacyMigrationProvenance::count());
         $this->assertSame($plan->summary_totals['sales_cases'], SalesCase::count());

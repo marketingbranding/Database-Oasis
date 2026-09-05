@@ -3,12 +3,14 @@
 namespace App\Services;
 
 use App\BankResponseType;
+use App\BastStatus;
 use App\BiCheckResult;
 use App\DocumentSubmissionStatus;
 use App\DocumentSubmissionType;
 use App\Enums\LegacyMigrationPlanOperationType;
 use App\FinancingType;
 use App\Models\AkadRecord;
+use App\Models\Bank;
 use App\Models\BankProcess;
 use App\Models\BastRecord;
 use App\Models\BiCheck;
@@ -57,6 +59,8 @@ class LegacyMigrationImportService
             $counts = [
                 'consumers_created' => 0,
                 'consumers_reused' => 0,
+                'units_created' => 0,
+                'units_reused' => 0,
                 'units' => 0,
                 'sales_cases' => 0,
                 'bi' => 0,
@@ -73,7 +77,7 @@ class LegacyMigrationImportService
             $resolvedCases = [];
             $resolvedPsjbs = [];
             $resolvedSubmissions = [];
-            $resolvedBankProcesses = [];
+            $resolvedBankProcesses = BankProcess::query()->whereKey([])->get();
             $resolvedPpjbs = [];
             $resolvedAkads = [];
 
@@ -81,6 +85,27 @@ class LegacyMigrationImportService
                 ->where('plan_id', $plan->id)
                 ->orderBy('sequence')
                 ->get();
+
+            $before = [
+                'sales_cases' => SalesCase::count(),
+                'bi' => BiCheck::count(),
+                'psjb' => Psjb::count(),
+                'pemberkasan' => DocumentSubmission::count(),
+                'bank' => BankProcess::count(),
+                'ppjb' => DeveloperPpjb::count(),
+                'akad' => AkadRecord::count(),
+                'bast' => BastRecord::count(),
+            ];
+            $expected = [
+                'sales_cases' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreateSalesCase)->count(),
+                'bi' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreateBiCheck)->count(),
+                'psjb' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreatePsjb)->count(),
+                'pemberkasan' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreateDocumentSubmission)->count(),
+                'bank' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreateBankProcess)->count(),
+                'ppjb' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreateDeveloperPpjb)->count(),
+                'akad' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreateAkad)->count(),
+                'bast' => $operations->where('operation_type', LegacyMigrationPlanOperationType::CreateBast)->count(),
+            ];
 
             foreach ($operations as $operation) {
                 $payload = $operation->payload;
@@ -125,6 +150,7 @@ class LegacyMigrationImportService
                             ['block' => strtok($unitCode, '-'), 'number' => strtok(''), 'status' => UnitStatus::Tersedia->value]
                         );
                         $resolvedUnits[$payload['plan_key']] = $unit;
+                        $counts[$unit->wasRecentlyCreated ? 'units_created' : 'units_reused']++;
                         $counts['units']++;
                         break;
 
@@ -253,7 +279,19 @@ class LegacyMigrationImportService
                         if ($case->financing_type === FinancingType::Cash) {
                             throw new RuntimeException("Invariant failure: CASH case cannot carry BankProcess operation ({$operation->sequence}).");
                         }
-                        $sub = isset($payload['submission_plan_key']) ? ($resolvedSubmissions[$payload['submission_plan_key']] ?? null) : null;
+                        $submissionPlanKey = $payload['submission_plan_key'] ?? null;
+                        $sub = $submissionPlanKey !== null ? ($resolvedSubmissions[$submissionPlanKey] ?? null) : null;
+                        if ($sub === null) {
+                            throw new RuntimeException("Invariant failure: Bank Process submission_plan_key {$submissionPlanKey} unresolved ({$operation->sequence}).");
+                        }
+                        $plannedBankId = $payload['bank_id'] ?? null;
+                        if ($plannedBankId === null || $sub->bank_id !== $plannedBankId) {
+                            throw new RuntimeException("Invariant failure: Bank Process bank differs from linked submission ({$operation->sequence}).");
+                        }
+                        $bank = Bank::whereKey($plannedBankId)->where('is_active', true)->first();
+                        if ($bank === null) {
+                            throw new RuntimeException("Invariant failure: Bank Process canonical Bank inactive/missing ({$operation->sequence}).");
+                        }
                         $respEnum = match ($payload['response_type']) {
                             'APPROVED' => BankResponseType::Approved,
                             'REJECTED' => BankResponseType::Rejected,
@@ -263,8 +301,8 @@ class LegacyMigrationImportService
 
                         $bp = BankProcess::create([
                             'sales_case_id' => $case->id,
-                            'document_submission_id' => $sub?->id,
-                            'bank_id' => $payload['bank_id'] ?? $sub?->bank_id,
+                            'document_submission_id' => $sub->id,
+                            'bank_id' => $bank->id,
                             'response_type' => $respEnum,
                             'response_date' => $payload['response_date'],
                             'sp3k_number' => $payload['sp3k_number'],
@@ -274,14 +312,15 @@ class LegacyMigrationImportService
                             'is_legacy_import' => true,
                             'legacy_date_missing' => (bool) $payload['legacy_date_missing'],
                         ]);
-                        $resolvedBankProcesses[$payload['plan_key']] = $bp;
+                        $resolvedBankProcesses->put($payload['plan_key'], $bp);
                         $case->update(['current_stage' => SalesCaseStage::ProsesBank]);
                         $counts['bank']++;
                         break;
 
                     case LegacyMigrationPlanOperationType::CreateDeveloperPpjb:
                         $case = $resolvedCases[$payload['sales_case_plan_key']] ?? throw new RuntimeException("Reference unresolvable: sales_case_plan_key {$payload['sales_case_plan_key']}");
-                        $bp = isset($payload['bank_process_plan_key']) ? ($resolvedBankProcesses[$payload['bank_process_plan_key']] ?? null) : null;
+                        $bankProcessPlanKey = $payload['bank_process_plan_key'] ?? null;
+                        $bp = $bankProcessPlanKey !== null ? $resolvedBankProcesses->get($bankProcessPlanKey) : null;
 
                         $ppjb = DeveloperPpjb::create([
                             'sales_case_id' => $case->id,
@@ -323,13 +362,22 @@ class LegacyMigrationImportService
                             throw new RuntimeException("Invariant failure: BAST date missing ({$operation->sequence}).");
                         }
 
+                        $legacyStatus = $payload['status'] ?? null;
+                        $bastStatus = match (true) {
+                            empty($legacyStatus) => BastStatus::Completed,
+                            in_array(mb_strtolower($legacyStatus), ['cancelled', 'batal', 'dibatalkan'], true) => BastStatus::Cancelled,
+                            default => BastStatus::Completed,
+                        };
+
                         BastRecord::create([
                             'sales_case_id' => $case->id,
                             'akad_id' => $akad?->id,
                             'bast_number' => $payload['bast_number'],
                             'bast_date' => $payload['bast_date'],
-                            'status' => $payload['status'] ?? 'COMPLETED',
+                            'status' => $bastStatus,
                             'notes' => $payload['notes'] ?? null,
+                            'is_legacy_import' => true,
+                            'legacy_date_missing' => (bool) $payload['legacy_date_missing'],
                         ]);
                         $case->update(['current_stage' => SalesCaseStage::Bast]);
                         $counts['bast']++;
@@ -362,7 +410,24 @@ class LegacyMigrationImportService
                 }
             }
 
-            return ['counts' => $counts, 'branch_id' => $branch->id];
+            $inserted = [
+                'sales_cases' => SalesCase::count() - $before['sales_cases'],
+                'bi' => BiCheck::count() - $before['bi'],
+                'psjb' => Psjb::count() - $before['psjb'],
+                'pemberkasan' => DocumentSubmission::count() - $before['pemberkasan'],
+                'bank' => BankProcess::count() - $before['bank'],
+                'ppjb' => DeveloperPpjb::count() - $before['ppjb'],
+                'akad' => AkadRecord::count() - $before['akad'],
+                'bast' => BastRecord::count() - $before['bast'],
+            ];
+
+            foreach ($expected as $table => $operationCount) {
+                if ($inserted[$table] !== $operationCount || $inserted[$table] !== $counts[$table]) {
+                    throw new RuntimeException("Invariant failure: {$table} operations={$operationCount}, inserted={$inserted[$table]}, executor_count={$counts[$table]}. Entire simulation rolled back.");
+                }
+            }
+
+            return ['counts' => $counts, 'branch_id' => $branch->id, 'inserted' => $inserted, 'inserted_sales_cases' => $inserted['sales_cases']];
         });
     }
 }

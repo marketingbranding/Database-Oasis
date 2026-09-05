@@ -89,15 +89,15 @@ class PhaseEightBMigrationWorkspaceTest extends TestCase
         ]);
 
         $this->writeCsv('pemberkasan.csv', [
-            ['legacy_id', 'bank', 'tanggal_pemberkasan', 'catatan'],
-            ['K-001', 'BCA', '2026-01-10', ''],
-            ['K-002', '', '2026-01-10', ''],
-            ['K-003', 'BRI', '2026-01-11', ''],
+            ['legacy_id', 'id_berkas', 'bank', 'tanggal_pemberkasan', 'catatan'],
+            ['K-001', 'BERKAS-001', 'BCA', '2026-01-10', ''],
+            ['K-002', 'BERKAS-002', '', '2026-01-10', ''],
+            ['K-003', 'BERKAS-003', 'BRI', '2026-01-11', ''],
         ]);
 
         $this->writeCsv('proses_bank.csv', [
-            ['legacy_id', 'bank', 'hasil', 'tanggal_response', 'nomor_sp3k', 'tanggal_sp3k'],
-            ['K-001', 'BCA', 'APPROVED', '2026-01-15', 'SP3K-001', '2026-01-15'],
+            ['legacy_id', 'id_berkas', 'bank', 'hasil', 'tanggal_response', 'nomor_sp3k', 'tanggal_sp3k'],
+            ['K-001', 'BERKAS-001', 'BCA', 'APPROVED', '2026-01-15', 'SP3K-001', '2026-01-15'],
         ]);
 
         $this->writeCsv('ppjb_dev.csv', [
@@ -233,8 +233,8 @@ class PhaseEightBMigrationWorkspaceTest extends TestCase
                 'data_konsumen' => [['source_sheet' => 'data_konsumen', 'source_row' => 5, 'date_normalized' => '2026-01-05']],
                 'bi_checking' => [],
                 'psjb' => [['source_sheet' => 'psjb', 'source_row' => 5, 'psjb_number' => 'PSJB-P', 'date_normalized' => '2026-01-06', 'status' => 'ACTIVE']],
-                'pemberkasan' => [['source_sheet' => 'pemberkasan', 'source_row' => 5, 'bank_name' => 'LEGACY-MEGA', 'date_normalized' => '2026-01-10', 'sequence' => 1]],
-                'proses_bank' => [['source_sheet' => 'proses_bank', 'source_row' => 5, 'bank_name' => 'LEGACY-MEGA', 'response_normalized' => 'APPROVED', 'response_date_normalized' => '2026-01-15', 'sp3k_number' => 'SP3K-P', 'sp3k_date_normalized' => '2026-01-15', 'is_authoritative' => true]],
+                'pemberkasan' => [['source_sheet' => 'pemberkasan', 'source_row' => 5, 'submission_number' => 'BERKAS-P', 'bank_name' => 'LEGACY-MEGA', 'date_normalized' => '2026-01-10', 'sequence' => 1]],
+                'proses_bank' => [['source_sheet' => 'proses_bank', 'source_row' => 5, 'submission_number' => 'BERKAS-P', 'bank_name' => 'LEGACY-MEGA', 'response_normalized' => 'APPROVED', 'response_date_normalized' => '2026-01-15', 'sp3k_number' => 'SP3K-P', 'sp3k_date_normalized' => '2026-01-15', 'is_authoritative' => true]],
                 'ppjb_dev' => [],
                 'akad' => [],
                 'bast' => [],

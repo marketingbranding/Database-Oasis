@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MigrationExceptionSeverity;
 use App\MigrationReadiness;
 use App\MigrationReviewDecision;
+use App\Models\LegacyMigrationBatch;
 use App\Models\LegacyMigrationCandidate;
 
 /**
@@ -53,6 +54,22 @@ class LegacyMigrationReadinessService
     public function isMigrationReady(LegacyMigrationCandidate $candidate): bool
     {
         return $this->calculate($candidate) === MigrationReadiness::Auto;
+    }
+
+    /** @return array<string, int> */
+    public function recalculateBatch(LegacyMigrationBatch $batch): array
+    {
+        $counts = [MigrationReadiness::Auto->value => 0, MigrationReadiness::Review->value => 0, MigrationReadiness::Blocked->value => 0];
+
+        foreach ($batch->candidates()->with(['exceptions', 'reviews', 'resolutions', 'batch'])->get() as $candidate) {
+            $readiness = $this->calculate($candidate);
+            if ($candidate->readiness !== $readiness) {
+                $candidate->update(['readiness' => $readiness]);
+            }
+            $counts[$readiness->value]++;
+        }
+
+        return $counts;
     }
 
     private function isResolved(LegacyMigrationCandidate $candidate, string $code): bool

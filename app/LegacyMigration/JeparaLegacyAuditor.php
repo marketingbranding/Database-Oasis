@@ -83,7 +83,14 @@ class JeparaLegacyAuditor
                     $matches = array_map(fn (int $idx): array => [
                         'source_candidate_key' => $cases[$idx]['candidate_key'],
                         'consumer_key' => $cases[$idx]['consumer_key'],
+                        'consumer_evidence' => array_values(array_filter([
+                            $cases[$idx]['legacy_consumer_id'],
+                            $cases[$idx]['nik_normalized'],
+                            $cases[$idx]['name_normalized'],
+                            $cases[$idx]['phone_normalized'],
+                        ])),
                         'unit_key' => $cases[$idx]['unit_key'],
+                        'unit_evidence' => [$cases[$idx]['unit_key']],
                         'confidence' => $cases[$idx]['confidence'],
                         'reason' => 'SUGGESTED_MATCH',
                     ], $caseIndexes);
@@ -639,6 +646,7 @@ class JeparaLegacyAuditor
                 break;
 
             case 'pemberkasan':
+                $payload['submission_number'] = $this->normalizer->document($values['submission_number'] ?? null);
                 $payload['bank_name'] = $this->normalizer->text($values['bank'] ?? null);
                 $payload['date_raw'] = $values['submission_date'] ?? $values['date'] ?? null;
                 $payload['date_normalized'] = $this->firstDate($values, ['submission_date', 'date'], $sheet, $row['row'], $exceptions);
@@ -647,6 +655,7 @@ class JeparaLegacyAuditor
                 break;
 
             case 'proses_bank':
+                $payload['submission_number'] = $this->normalizer->document($values['submission_number'] ?? null);
                 $sp3kRaw = $this->normalizer->document($values['sp3k_number'] ?? null);
                 $sp3kUpper = Str::upper($sp3kRaw ?? '');
                 $validSp3k = ($sp3kRaw !== null && ! in_array($sp3kUpper, ['CASH', 'REJECT', 'REJECTED'], true)) ? $sp3kRaw : null;
