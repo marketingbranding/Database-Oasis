@@ -1,7 +1,12 @@
 FROM php:8.4-cli-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git libicu-dev libpq-dev libzip-dev unzip \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg git libicu-dev libpq-dev libzip-dev unzip \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-17 \
     && docker-php-ext-install intl pdo_pgsql zip \
     && rm -rf /var/lib/apt/lists/*
 

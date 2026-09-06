@@ -1,6 +1,6 @@
-# Legacy Migration Runbook — Phase 8A (Audit Only)
+# Legacy Migration Runbook
 
-Runbook ini hanya mencakup **audit**. Import (Phase 8B) belum ada dan tidak boleh diasumsikan.
+Audit tetap read-only. Persistent import hanya melalui controlled Phase 8D command setelah plan AUTO disetujui.
 
 ## Prasyarat
 
@@ -36,4 +36,18 @@ Output kustom via `--output=/absolute/path` bila perlu.
 
 - Jangan commit source legacy maupun report berisi PII (sudah diabaikan oleh Git).
 - Jangan mengubah aturan identity/duplicate tanpa memperbarui `docs/LEGACY_MIGRATION_JEPARA_MAPPING.md` dan test fixture.
-- Phase 8B memakai DTO/konvensi yang sama; runbook itu akan ditambah terpisah setelah disetujui.
+## Controlled import
+
+```sh
+php artisan legacy:import <plan-id> --user-id=<operator-user-id>
+```
+
+Command wajib lulus preflight, membuat PostgreSQL custom-format backup di `storage/app/private/legacy-backups/`, meminta konfirmasi pada terminal interaktif, lalu menjalankan satu transaksi atomik. `--no-interaction` hanya untuk automation terkontrol; tidak melewati preflight atau backup. Plan yang sudah `COMPLETED` tidak dapat dijalankan lagi.
+
+Restore manual dilakukan setelah aplikasi dihentikan dan database target kosong:
+
+```sh
+pg_restore --clean --if-exists --no-owner --no-privileges --dbname=<database> <recorded-backup-path>
+```
+
+Backup tidak dihapus otomatis. Verifikasi path dan target database sebelum restore.

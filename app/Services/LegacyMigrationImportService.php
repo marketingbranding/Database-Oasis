@@ -18,6 +18,7 @@ use App\Models\Branch;
 use App\Models\Consumer;
 use App\Models\DeveloperPpjb;
 use App\Models\DocumentSubmission;
+use App\Models\LegacyMigrationExecution;
 use App\Models\LegacyMigrationPlan;
 use App\Models\LegacyMigrationPlanOperation;
 use App\Models\LegacyMigrationProvenance;
@@ -29,6 +30,7 @@ use App\PsjbStatus;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use App\UnitStatus;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -38,12 +40,21 @@ use RuntimeException;
  */
 class LegacyMigrationImportService
 {
+    /** @var callable(string): void|null */
+    private $failureInjector = null;
+
     public function __construct(
         private LegacyMigrationPlanService $planService,
     ) {}
 
+    /** @param callable(string): void $injector */
+    public function useFailureInjector(callable $injector): void
+    {
+        $this->failureInjector = $injector;
+    }
+
     /** @return array<string, mixed> */
-    public function execute(LegacyMigrationPlan $plan): array
+    public function execute(LegacyMigrationPlan $plan, ?LegacyMigrationExecution $execution = null): array
     {
         if ($this->planService->isStale($plan)) {
             throw new RuntimeException('Plan migration sudah basi (stale). Silakan generate ulang plan.');
@@ -53,7 +64,7 @@ class LegacyMigrationImportService
             throw new RuntimeException('Plan fingerprint tidak cocok (tampered). Import dibatalkan.');
         }
 
-        return DB::transaction(function () use ($plan): array {
+        return DB::transaction(function () use ($plan, $execution): array {
             $branch = Branch::firstOrCreate(['code' => 'LEGACY-JEPARA'], ['name' => 'Legacy Jepara', 'city' => 'Jepara', 'province' => 'Jawa Tengah']);
 
             $counts = [
@@ -110,6 +121,7 @@ class LegacyMigrationImportService
             foreach ($operations as $operation) {
                 $payload = $operation->payload;
                 $type = $operation->operation_type;
+                $target = null;
 
                 switch ($type) {
                     case LegacyMigrationPlanOperationType::CreateConsumer:
@@ -123,6 +135,7 @@ class LegacyMigrationImportService
                             'phone' => $payload['phone'] ?? null,
                         ]);
                         $resolvedConsumers[$payload['plan_key']] = $consumer;
+                        $target = $consumer;
                         $counts['consumers_created']++;
                         break;
 
@@ -135,6 +148,7 @@ class LegacyMigrationImportService
                             throw new RuntimeException("Operational invariant failure: Consumer target pada ReuseConsumer tidak cocok ({$operation->sequence}).");
                         }
                         $resolvedConsumers[$payload['plan_key']] = $targetConsumer;
+                        $target = $targetConsumer;
                         $counts['consumers_reused']++;
                         break;
 
@@ -150,6 +164,7 @@ class LegacyMigrationImportService
                             ['block' => strtok($unitCode, '-'), 'number' => strtok(''), 'status' => UnitStatus::Tersedia->value]
                         );
                         $resolvedUnits[$payload['plan_key']] = $unit;
+                        $target = $unit;
                         $counts[$unit->wasRecentlyCreated ? 'units_created' : 'units_reused']++;
                         $counts['units']++;
                         break;
@@ -181,20 +196,8 @@ class LegacyMigrationImportService
                             'is_legacy_import' => true,
                         ]);
                         $resolvedCases[$payload['plan_key']] = $salesCase;
+                        $target = $salesCase;
                         $counts['sales_cases']++;
-
-                        if ($operation->candidate_id !== null && isset($payload['provenance'])) {
-                            LegacyMigrationProvenance::create([
-                                'batch_id' => $plan->batch_id,
-                                'candidate_id' => $operation->candidate_id,
-                                'source_sheet' => $payload['provenance']['source_sheet'] ?? 'data_konsumen',
-                                'source_row' => $payload['provenance']['source_row'] ?? null,
-                                'entity_type' => 'sales_case',
-                                'source_values' => $payload,
-                                'source_fingerprint' => $plan->source_fingerprint,
-                                'audit_fingerprint' => $plan->audit_fingerprint,
-                            ]);
-                        }
                         break;
 
                     case LegacyMigrationPlanOperationType::LinkPreviousCase:
@@ -220,7 +223,7 @@ class LegacyMigrationImportService
                             default => BiCheckResult::Review,
                         };
 
-                        BiCheck::create([
+                        $target = BiCheck::create([
                             'sales_case_id' => $case->id,
                             'check_date' => $payload['check_date'],
                             'result' => $resEnum,
@@ -248,6 +251,7 @@ class LegacyMigrationImportService
                             'legacy_date_missing' => (bool) $payload['legacy_date_missing'],
                         ]);
                         $resolvedPsjbs[$payload['plan_key']] = $psjb;
+                        $target = $psjb;
                         $case->update(['current_stage' => SalesCaseStage::Psjb]);
                         $counts['psjb']++;
                         break;
@@ -270,6 +274,7 @@ class LegacyMigrationImportService
                             'legacy_date_missing' => (bool) $payload['legacy_date_missing'],
                         ]);
                         $resolvedSubmissions[$payload['plan_key']] = $sub;
+                        $target = $sub;
                         $case->update(['current_stage' => SalesCaseStage::Pemberkasan]);
                         $counts['pemberkasan']++;
                         break;
@@ -313,6 +318,7 @@ class LegacyMigrationImportService
                             'legacy_date_missing' => (bool) $payload['legacy_date_missing'],
                         ]);
                         $resolvedBankProcesses->put($payload['plan_key'], $bp);
+                        $target = $bp;
                         $case->update(['current_stage' => SalesCaseStage::ProsesBank]);
                         $counts['bank']++;
                         break;
@@ -332,6 +338,7 @@ class LegacyMigrationImportService
                             'legacy_date_missing' => (bool) $payload['legacy_date_missing'],
                         ]);
                         $resolvedPpjbs[$payload['plan_key']] = $ppjb;
+                        $target = $ppjb;
                         $case->update(['current_stage' => SalesCaseStage::PpjbDev]);
                         $counts['ppjb']++;
                         break;
@@ -351,6 +358,7 @@ class LegacyMigrationImportService
                             'notes' => $payload['notes'] ?? null,
                         ]);
                         $resolvedAkads[$payload['plan_key']] = $akad;
+                        $target = $akad;
                         $case->update(['current_stage' => SalesCaseStage::Akad]);
                         $counts['akad']++;
                         break;
@@ -369,7 +377,7 @@ class LegacyMigrationImportService
                             default => BastStatus::Completed,
                         };
 
-                        BastRecord::create([
+                        $target = BastRecord::create([
                             'sales_case_id' => $case->id,
                             'akad_id' => $akad?->id,
                             'bast_number' => $payload['bast_number'],
@@ -408,6 +416,10 @@ class LegacyMigrationImportService
                         $unit->update(['status' => $unitState]);
                         break;
                 }
+
+                if ($target !== null && $operation->candidate_id !== null) {
+                    $this->recordProvenance($execution, $plan, $operation, $target);
+                }
             }
 
             $inserted = [
@@ -421,13 +433,52 @@ class LegacyMigrationImportService
                 'bast' => BastRecord::count() - $before['bast'],
             ];
 
+            if ($this->failureInjector !== null) {
+                ($this->failureInjector)('operation_reconciliation');
+            }
+
             foreach ($expected as $table => $operationCount) {
                 if ($inserted[$table] !== $operationCount || $inserted[$table] !== $counts[$table]) {
                     throw new RuntimeException("Invariant failure: {$table} operations={$operationCount}, inserted={$inserted[$table]}, executor_count={$counts[$table]}. Entire simulation rolled back.");
                 }
             }
 
-            return ['counts' => $counts, 'branch_id' => $branch->id, 'inserted' => $inserted, 'inserted_sales_cases' => $inserted['sales_cases']];
+            $counts['previous_case_links'] = $operations->where('operation_type', LegacyMigrationPlanOperationType::LinkPreviousCase)->count();
+            if ($counts['previous_case_links'] !== SalesCase::whereIn('id', collect($resolvedCases)->pluck('id'))->whereNotNull('previous_case_id')->count()) {
+                throw new RuntimeException('Invariant failure: previous_case link reconciliation failed. Entire import rolled back.');
+            }
+
+            if ($this->failureInjector !== null) {
+                ($this->failureInjector)('material_reconciliation');
+            }
+
+            return ['counts' => $counts, 'branch_id' => $branch->id, 'inserted' => $inserted, 'inserted_sales_cases' => $inserted['sales_cases'], 'material_mismatch_count' => 0];
         });
+    }
+
+    private function recordProvenance(?LegacyMigrationExecution $execution, LegacyMigrationPlan $plan, LegacyMigrationPlanOperation $operation, Model $target): void
+    {
+        $payload = $operation->payload;
+        $provenance = $payload['provenance'] ?? [];
+        $sourceRows = $provenance['provenance_all_rows'] ?? [$provenance['source_row'] ?? $payload['source_row'] ?? null];
+
+        foreach ($sourceRows as $sourceRow) {
+            LegacyMigrationProvenance::create([
+                'execution_id' => $execution?->id,
+                'plan_id' => $plan->id,
+                'operation_id' => $operation->id,
+                'batch_id' => $plan->batch_id,
+                'candidate_id' => $operation->candidate_id,
+                'source_sheet' => $provenance['source_sheet'] ?? $payload['source_sheet'] ?? 'data_konsumen',
+                'source_row' => $sourceRow,
+                'legacy_id' => $provenance['legacy_id'] ?? null,
+                'entity_type' => class_basename($target),
+                'target_type' => $target::class,
+                'target_id' => $target->getKey(),
+                'source_values' => $payload,
+                'source_fingerprint' => $plan->source_fingerprint,
+                'audit_fingerprint' => $plan->audit_fingerprint,
+            ]);
+        }
     }
 }
