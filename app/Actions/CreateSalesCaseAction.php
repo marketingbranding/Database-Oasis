@@ -37,14 +37,10 @@ class CreateSalesCaseAction
                 throw ValidationException::withMessages(['unit_id' => 'Unit sudah memiliki sales case aktif.']);
             }
 
+            // One consumer may hold several ACTIVE sales cases (one
+            // id_transaksi_v2 = one independent case), so no consumer-level
+            // ACTIVE guard exists here. Only the unit guard above applies.
             $consumer = $this->resolveConsumer($user, $data);
-
-            if (SalesCase::query()
-                ->whereBelongsTo($consumer)
-                ->where('case_status', SalesCaseStatus::Active->value)
-                ->exists()) {
-                throw ValidationException::withMessages(['consumer_id' => 'Konsumen sudah memiliki sales case aktif.']);
-            }
 
             try {
                 /** @var SalesCase $case */
@@ -63,8 +59,8 @@ class CreateSalesCaseAction
                     'created_by' => $user->id,
                 ]);
             } catch (UniqueConstraintViolationException) {
-                // A concurrent transaction created an ACTIVE case for this unit or consumer first.
-                throw ValidationException::withMessages(['unit_id' => 'Unit atau konsumen sudah memiliki sales case aktif.']);
+                // A concurrent transaction created an ACTIVE case for this unit first.
+                throw ValidationException::withMessages(['unit_id' => 'Unit sudah memiliki sales case aktif.']);
             }
 
             $unit->update(['status' => UnitStatus::Booking]);

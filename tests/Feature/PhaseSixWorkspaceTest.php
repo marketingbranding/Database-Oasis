@@ -214,27 +214,28 @@ class PhaseSixWorkspaceTest extends TestCase
         app(CancelSalesCaseAction::class)->handle($this->hq, $completed, 'nope');
     }
 
-    public function test_pindah_kavling_navigation_links_both_directions(): void
+    public function test_pindah_kavling_keeps_single_active_case_with_traceable_note(): void
     {
         $branch = Branch::factory()->create();
         $unitA = Unit::factory()->for(Project::factory()->for($branch))->create();
         $unitB = Unit::factory()->for(Project::factory()->for($branch))->create();
 
-        $old = $this->cashCaseOn($unitA);
-        $new = app(MoveSalesCaseUnitAction::class)->handle($this->hq, $old, $unitB->id, 'dekat jalan');
+        $case = $this->cashCaseOn($unitA);
+        $moved = app(MoveSalesCaseUnitAction::class)->handle($this->hq, $case, $unitB->id, 'dekat jalan');
+
+        $this->assertSame($case->id, $moved->id);
+        $this->assertTrue($moved->refresh()->case_status === SalesCaseStatus::Active);
+        $this->assertSame($unitB->id, $moved->unit_id);
 
         $this->actingAs($this->hq);
 
-        Livewire::test(ViewSalesCase::class, ['record' => $new->id])
-            ->assertSuccessful()
-            ->assertSeeText($unitA->unit_code);
-
-        Livewire::test(ViewSalesCase::class, ['record' => $old->id])
+        Livewire::test(ViewSalesCase::class, ['record' => $moved->id])
             ->assertSuccessful()
             ->assertSeeText($unitB->unit_code);
 
-        $this->assertTrue($old->refresh()->case_status === SalesCaseStatus::PindahKavling);
-        $this->assertTrue($new->case_status === SalesCaseStatus::Active);
+        $note = $moved->caseNotes()->latest('id')->first();
+        $this->assertStringContainsString($unitA->unit_code, $note->note);
+        $this->assertStringContainsString('dekat jalan', $note->note);
     }
 
     public function test_branch_user_cannot_open_cross_branch_workspace_and_auditor_is_read_only(): void

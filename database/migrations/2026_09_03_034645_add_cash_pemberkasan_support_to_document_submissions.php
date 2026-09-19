@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Database\PartialUniqueGuard;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -11,8 +12,15 @@ return new class extends Migration
     {
         Schema::table('document_submissions', function (Blueprint $table) {
             $table->string('type')->default('BANK')->after('status');
-            $table->foreignUlid('bank_id')->nullable()->change();
         });
+
+        if (PartialUniqueGuard::isMysqlFamily()) {
+            PartialUniqueGuard::modifyNullable('document_submissions', 'bank_id', 'CHAR(26)', true);
+        } else {
+            Schema::table('document_submissions', function (Blueprint $table) {
+                $table->foreignUlid('bank_id')->nullable()->change();
+            });
+        }
 
         if (DB::getDriverName() === 'pgsql') {
             DB::statement("ALTER TABLE document_submissions ADD CONSTRAINT document_submissions_bank_type_check CHECK ((type = 'BANK' AND bank_id IS NOT NULL) OR (type = 'CASH_INTERNAL' AND bank_id IS NULL))");
@@ -29,7 +37,14 @@ return new class extends Migration
 
         Schema::table('document_submissions', function (Blueprint $table) {
             $table->dropColumn('type');
-            $table->foreignUlid('bank_id')->nullable(false)->change();
         });
+
+        if (PartialUniqueGuard::isMysqlFamily()) {
+            PartialUniqueGuard::modifyNullable('document_submissions', 'bank_id', 'CHAR(26)', false);
+        } else {
+            Schema::table('document_submissions', function (Blueprint $table) {
+                $table->foreignUlid('bank_id')->nullable(false)->change();
+            });
+        }
     }
 };

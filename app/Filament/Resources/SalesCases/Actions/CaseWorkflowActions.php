@@ -79,7 +79,7 @@ class CaseWorkflowActions
 
                 Notification::make()
                     ->title('Kavling dipindah')
-                    ->body('Sales case baru telah dibuat untuk unit baru.')
+                    ->body('Unit saat ini telah diperbarui, sales case tetap aktif.')
                     ->success()
                     ->send();
             });

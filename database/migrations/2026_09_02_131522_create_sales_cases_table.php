@@ -1,8 +1,8 @@
 <?php
 
+use App\Support\Database\PartialUniqueGuard;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -12,7 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('sales_cases', function (Blueprint $table) {
+        $partial = PartialUniqueGuard::supportsPartialIndexes();
+
+        Schema::create('sales_cases', function (Blueprint $table) use ($partial) {
             $table->ulid('id')->primary();
             $table->foreignUlid('consumer_id')->constrained()->restrictOnDelete();
             $table->foreignUlid('unit_id')->constrained()->restrictOnDelete();
@@ -39,6 +41,17 @@ return new class extends Migration
             $table->index('project_id');
             $table->index('case_status');
             $table->index('current_stage');
+
+            if (! $partial) {
+                // MariaDB/MySQL has no partial indexes. The generated column is
+                // NULL for non-ACTIVE rows, and unique indexes ignore NULL
+                // duplicates, so this reproduces "one ACTIVE sales case per
+                // unit". There is intentionally no consumer guard: one consumer
+                // may hold several ACTIVE sales cases.
+                $table->ulid('active_unit_key')->nullable()
+                    ->storedAs("case when case_status = 'ACTIVE' then unit_id else null end");
+                $table->unique('active_unit_key', 'sales_cases_unit_active_unique');
+            }
         });
 
         // PostgreSQL adds the primary key after the foreign keys within Schema::create,
@@ -50,10 +63,11 @@ return new class extends Migration
                 ->nullOnDelete();
         });
 
-        // Structural one-ACTIVE-case-per-unit and one-ACTIVE-case-per-consumer guards.
-        // Partial unique indexes work identically on PostgreSQL and SQLite.
-        DB::statement('CREATE UNIQUE INDEX sales_cases_unit_active_unique ON sales_cases (unit_id) WHERE case_status = \'ACTIVE\'');
-        DB::statement('CREATE UNIQUE INDEX sales_cases_consumer_active_unique ON sales_cases (consumer_id) WHERE case_status = \'ACTIVE\'');
+        // Structural one-ACTIVE-case-per-unit guard. There is intentionally no
+        // one-ACTIVE-case-per-consumer guard: one consumer may hold several
+        // ACTIVE sales cases. On PostgreSQL/SQLite this is a partial unique
+        // index; on MariaDB/MySQL the generated column above covers it.
+        PartialUniqueGuard::createPartialUnique('sales_cases', 'sales_cases_unit_active_unique', 'unit_id', "case_status = 'ACTIVE'");
     }
 
     /**
@@ -61,8 +75,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement('DROP INDEX IF EXISTS sales_cases_consumer_active_unique');
-        DB::statement('DROP INDEX IF EXISTS sales_cases_unit_active_unique');
+        PartialUniqueGuard::dropIndex('sales_cases_unit_active_unique', 'sales_cases');
+        PartialUniqueGuard::dropIndex('sales_cases_consumer_active_unique', 'sales_cases');
 
         Schema::table('sales_cases', function (Blueprint $table) {
             $table->dropForeign(['previous_case_id']);

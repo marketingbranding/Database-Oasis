@@ -118,17 +118,18 @@ class PhaseTwoSalesCaseTest extends TestCase
         $this->createCase($user, $unit);
     }
 
-    public function test_second_active_case_for_same_consumer_is_rejected(): void
+    public function test_second_active_case_for_same_consumer_is_allowed(): void
     {
         $user = $this->hqAdmin();
         $branch = Branch::factory()->create();
         $consumer = Consumer::factory()->create();
 
-        $this->createCase($user, $this->makeUnit($branch), ['consumer_id' => $consumer->id]);
+        $first = $this->createCase($user, $this->makeUnit($branch), ['consumer_id' => $consumer->id]);
+        $second = $this->createCase($user, $this->makeUnit($branch), ['consumer_id' => $consumer->id]);
 
-        $this->expectException(ValidationException::class);
-
-        $this->createCase($user, $this->makeUnit($branch), ['consumer_id' => $consumer->id]);
+        $this->assertTrue($first->case_status === SalesCaseStatus::Active);
+        $this->assertTrue($second->case_status === SalesCaseStatus::Active);
+        $this->assertSame(2, SalesCase::query()->whereBelongsTo($consumer)->active()->count());
     }
 
     public function test_duplicate_active_case_for_unit_is_blocked_by_database_constraint(): void
@@ -151,16 +152,14 @@ class PhaseTwoSalesCaseTest extends TestCase
         ]);
     }
 
-    public function test_duplicate_active_case_for_consumer_is_blocked_by_database_constraint(): void
+    public function test_second_active_case_for_same_consumer_is_allowed_by_database(): void
     {
         $user = $this->hqAdmin();
         $branch = Branch::factory()->create();
         $consumer = Consumer::factory()->create();
         $case = $this->createCase($user, $this->makeUnit($branch), ['consumer_id' => $consumer->id]);
 
-        $this->expectException(UniqueConstraintViolationException::class);
-
-        SalesCase::create([
+        $other = SalesCase::create([
             'consumer_id' => $consumer->id,
             'unit_id' => $this->makeUnit($branch)->id,
             'project_id' => $case->project_id,
@@ -170,6 +169,9 @@ class PhaseTwoSalesCaseTest extends TestCase
             'case_status' => SalesCaseStatus::Active,
             'created_by' => $user->id,
         ]);
+
+        $this->assertSame(2, SalesCase::query()->whereBelongsTo($consumer)->count());
+        $this->assertTrue($other->case_status === SalesCaseStatus::Active);
     }
 
     public function test_closed_history_does_not_block_a_new_case_for_same_unit_and_consumer(): void

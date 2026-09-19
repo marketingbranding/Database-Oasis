@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['consumer_id', 'unit_id', 'project_id', 'branch_id', 'financing_type', 'booking_date', 'source', 'current_stage', 'case_status', 'previous_case_id', 'transfer_reason', 'sales_pic_id', 'coordinator_id', 'closed_at', 'closed_reason', 'created_by', 'is_legacy_import'])]
+#[Fillable(['consumer_id', 'unit_id', 'project_id', 'branch_id', 'financing_type', 'booking_date', 'source', 'current_stage', 'case_status', 'previous_case_id', 'transfer_reason', 'needs_review', 'needs_review_reason', 'sales_pic_id', 'coordinator_id', 'closed_at', 'closed_reason', 'created_by', 'is_legacy_import'])]
 class SalesCase extends Model
 {
     /** @use HasFactory<SalesCaseFactory> */
@@ -29,6 +29,7 @@ class SalesCase extends Model
             'current_stage' => SalesCaseStage::class,
             'case_status' => SalesCaseStatus::class,
             'closed_at' => 'datetime',
+            'needs_review' => 'boolean',
         ];
     }
 
@@ -39,6 +40,34 @@ class SalesCase extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('case_status', SalesCaseStatus::Active->value);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeNeedsReview(Builder $query): Builder
+    {
+        return $query->where('needs_review', true);
+    }
+
+    /**
+     * Flag the case as PERLU DICEK without blocking its use.
+     */
+    public function markForReview(string $reason): bool
+    {
+        return $this->update([
+            'needs_review' => true,
+            'needs_review_reason' => $reason,
+        ]);
+    }
+
+    public function clearReview(): bool
+    {
+        return $this->update([
+            'needs_review' => false,
+            'needs_review_reason' => null,
+        ]);
     }
 
     /** @return BelongsTo<Consumer, $this> */

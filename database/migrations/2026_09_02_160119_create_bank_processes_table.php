@@ -1,8 +1,8 @@
 <?php
 
+use App\Support\Database\PartialUniqueGuard;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -12,7 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('bank_processes', function (Blueprint $table) {
+        $partial = PartialUniqueGuard::supportsPartialIndexes();
+
+        Schema::create('bank_processes', function (Blueprint $table) use ($partial) {
             $table->ulid('id')->primary();
             $table->foreignUlid('sales_case_id')->constrained()->restrictOnDelete();
             $table->foreignUlid('document_submission_id')->nullable()->constrained()->restrictOnDelete();
@@ -35,9 +37,19 @@ return new class extends Migration
             $table->index('response_type');
             $table->index('response_date');
             $table->index('sp3k_number');
+
+            if (! $partial) {
+                // MariaDB/MySQL: reproduce the partial unique guard. The
+                // truthy check compiles on every driver, so only rows with an
+                // authoritative approval participate in the unique index.
+                $table->ulid('authoritative_case_key')->nullable()
+                    ->storedAs('case when is_authoritative then sales_case_id else null end');
+                $table->unique('authoritative_case_key', 'bank_processes_authoritative_approval_unique');
+            }
         });
 
-        DB::statement('CREATE UNIQUE INDEX bank_processes_authoritative_approval_unique ON bank_processes (sales_case_id) WHERE is_authoritative = true');
+        // Structural one-authoritative-bank-process-per-sales-case guard.
+        PartialUniqueGuard::createPartialUnique('bank_processes', 'bank_processes_authoritative_approval_unique', 'sales_case_id', 'is_authoritative = true');
     }
 
     /**
@@ -45,7 +57,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement('DROP INDEX IF EXISTS bank_processes_authoritative_approval_unique');
+        PartialUniqueGuard::dropIndex('bank_processes_authoritative_approval_unique', 'bank_processes');
 
         Schema::dropIfExists('bank_processes');
     }

@@ -112,39 +112,42 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         app(MarkSalesCaseMundurAction::class)->handle($user, $case->refresh(), 'Coba tutup lagi');
     }
 
-    public function test_pindah_kavling_closes_old_case_and_creates_linked_new_case(): void
+    public function test_pindah_kavling_moves_case_in_place_and_keeps_it_active(): void
     {
         $user = $this->hqAdmin();
         $branch = Branch::factory()->create();
         $oldCase = $this->activeCase($user, $branch);
         $oldUnitId = $oldCase->unit_id;
+        $oldUnitCode = $oldCase->unit->unit_code;
         $newUnit = $this->makeUnit($branch);
 
-        $newCase = app(MoveSalesCaseUnitAction::class)->handle($user, $oldCase->refresh(), $newUnit->id, 'Konsumen minta kavling dekat jalan');
+        $moved = app(MoveSalesCaseUnitAction::class)->handle($user, $oldCase->refresh(), $newUnit->id, 'Konsumen minta kavling dekat jalan');
 
-        $oldCase = $oldCase->refresh();
-
-        $this->assertTrue($oldCase->case_status === SalesCaseStatus::PindahKavling);
-        $this->assertNotNull($oldCase->closed_at);
-        $this->assertSame($oldUnitId, $oldCase->unit_id, 'Old case identity must never be mutated.');
-
-        $this->assertTrue($newCase->case_status === SalesCaseStatus::Active);
-        $this->assertSame($oldCase->id, $newCase->previous_case_id);
-        $this->assertSame($newUnit->id, $newCase->unit_id);
-        $this->assertSame($newUnit->project_id, $newCase->project_id);
-        $this->assertSame($branch->id, $newCase->branch_id);
-        $this->assertSame($oldCase->consumer_id, $newCase->consumer_id);
-        $this->assertSame($oldCase->financing_type, $newCase->financing_type);
-        $this->assertSame($oldCase->source, $newCase->source);
-        $this->assertSame($oldCase->sales_pic_id, $newCase->sales_pic_id);
-        $this->assertSame($oldCase->coordinator_id, $newCase->coordinator_id);
-        $this->assertSame('Konsumen minta kavling dekat jalan', $newCase->transfer_reason);
+        $this->assertSame($oldCase->id, $moved->id, 'A unit transfer must not create a new sales case.');
+        $this->assertTrue($moved->case_status === SalesCaseStatus::Active);
+        $this->assertNull($moved->closed_at);
+        $this->assertSame($newUnit->id, $moved->unit_id);
+        $this->assertSame($newUnit->project_id, $moved->project_id);
+        $this->assertSame($branch->id, $moved->branch_id);
+        $this->assertSame($oldCase->consumer_id, $moved->consumer_id);
+        $this->assertSame($oldCase->financing_type, $moved->financing_type);
+        $this->assertSame($oldCase->source, $moved->source);
+        $this->assertSame($oldCase->sales_pic_id, $moved->sales_pic_id);
+        $this->assertSame($oldCase->coordinator_id, $moved->coordinator_id);
+        $this->assertSame('Konsumen minta kavling dekat jalan', $moved->transfer_reason);
 
         $this->assertSame(UnitStatus::Tersedia->value, Unit::find($oldUnitId)->status->value);
         $this->assertSame(UnitStatus::Booking->value, $newUnit->fresh()->status->value);
 
-        $this->assertSame(2, SalesCase::query()->whereBelongsTo($oldCase->consumer)->count());
+        $this->assertSame(1, SalesCase::query()->whereBelongsTo($oldCase->consumer)->count());
         $this->assertSame(1, Consumer::query()->count());
+
+        $this->assertDatabaseHas('case_notes', [
+            'sales_case_id' => $moved->id,
+        ]);
+        $note = $moved->caseNotes()->latest('id')->first();
+        $this->assertStringContainsString($oldUnitCode, $note->note);
+        $this->assertStringContainsString($newUnit->unit_code, $note->note);
     }
 
     public function test_pindah_kavling_rejects_non_active_case(): void
@@ -270,25 +273,27 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         $this->assertSame(2, SalesCase::query()->whereBelongsTo($sri)->count());
     }
 
-    public function test_view_page_renders_case_detail_with_history_link(): void
+    public function test_view_page_renders_case_detail_after_unit_move(): void
     {
         $user = $this->hqAdmin();
         $branch = Branch::factory()->create();
         $oldCase = $this->activeCase($user, $branch);
-        $newCase = app(MoveSalesCaseUnitAction::class)->handle(
+        $moved = app(MoveSalesCaseUnitAction::class)->handle(
             $user,
             $oldCase->refresh(),
             $this->makeUnit($branch)->id,
             'Minta kavling hook',
         );
 
+        $this->assertSame($oldCase->id, $moved->id);
+
         $this->actingAs($user);
 
-        $this->get("/admin/sales-cases/{$newCase->id}")
+        $this->get("/admin/sales-cases/{$moved->id}")
             ->assertOk()
-            ->assertSeeText($newCase->consumer->name);
+            ->assertSeeText($moved->consumer->name);
 
-        Livewire::test(ViewSalesCase::class, ['record' => $newCase->id])
+        Livewire::test(ViewSalesCase::class, ['record' => $moved->id])
             ->assertSuccessful();
     }
 

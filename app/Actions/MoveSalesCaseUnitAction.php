@@ -2,10 +2,10 @@
 
 namespace App\Actions;
 
+use App\Models\CaseNote;
 use App\Models\SalesCase;
 use App\Models\Unit;
 use App\Models\User;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use App\UnitStatus;
 use Illuminate\Support\Facades\DB;
@@ -14,32 +14,40 @@ use Illuminate\Validation\ValidationException;
 
 class MoveSalesCaseUnitAction
 {
-    public function handle(User $user, SalesCase $oldCase, string $newUnitId, string $transferReason): SalesCase
+    /**
+     * Move a sales case to another unit in place.
+     *
+     * A unit transfer is an event on the same sales case, not a terminal
+     * status: the old unit is released, the new unit becomes current, and the
+     * case remains ACTIVE. The transfer stays traceable through
+     * transfer_reason plus a case note recording the previous unit.
+     */
+    public function handle(User $user, SalesCase $case, string $newUnitId, string $transferReason): SalesCase
     {
-        Gate::forUser($user)->authorize('update', $oldCase);
+        Gate::forUser($user)->authorize('update', $case);
 
-        return DB::transaction(function () use ($user, $oldCase, $newUnitId, $transferReason): SalesCase {
-            /** @var SalesCase $oldCase */
-            $oldCase = SalesCase::whereKey($oldCase->id)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($user, $case, $newUnitId, $transferReason): SalesCase {
+            /** @var SalesCase $case */
+            $case = SalesCase::whereKey($case->id)->lockForUpdate()->firstOrFail();
 
-            if ($oldCase->case_status !== SalesCaseStatus::Active) {
+            if ($case->case_status !== SalesCaseStatus::Active) {
                 throw ValidationException::withMessages(['case_status' => 'Sales case sudah tidak aktif.']);
             }
 
-            if ($oldCase->akad()->exists()) {
+            if ($case->akad()->exists()) {
                 throw ValidationException::withMessages(['case_status' => 'Sales case tidak dapat pindah kavling setelah Akad.']);
             }
 
             // Lock both units in a deterministic order to avoid deadlocks between opposing moves.
             $units = Unit::query()
                 ->with('project')
-                ->whereIn('id', [$oldCase->unit_id, $newUnitId])
+                ->whereIn('id', [$case->unit_id, $newUnitId])
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
 
             /** @var Unit $oldUnit */
-            $oldUnit = $units->firstWhere('id', $oldCase->unit_id);
+            $oldUnit = $units->firstWhere('id', $case->unit_id);
             /** @var Unit|null $newUnit */
             $newUnit = $units->firstWhere('id', $newUnitId);
 
@@ -53,11 +61,11 @@ class MoveSalesCaseUnitAction
                 throw ValidationException::withMessages(['new_unit_id' => 'Unit baru berada di luar cabang Anda.']);
             }
 
-            if ($newUnitBranchId !== $oldCase->branch_id) {
+            if ($newUnitBranchId !== $case->branch_id) {
                 throw ValidationException::withMessages(['new_unit_id' => 'Pindah kavling hanya boleh dalam satu cabang.']);
             }
 
-            if ($newUnit->id === $oldCase->unit_id) {
+            if ($newUnit->id === $case->unit_id) {
                 throw ValidationException::withMessages(['new_unit_id' => 'Unit baru sama dengan unit saat ini.']);
             }
 
@@ -65,43 +73,24 @@ class MoveSalesCaseUnitAction
                 throw ValidationException::withMessages(['new_unit_id' => 'Unit baru sudah memiliki sales case aktif.']);
             }
 
-            $consumerHasOtherActiveCase = SalesCase::query()
-                ->whereBelongsTo($oldCase->consumer)
-                ->where('case_status', SalesCaseStatus::Active->value)
-                ->whereKeyNot($oldCase->id)
-                ->exists();
+            $oldUnitCode = $oldUnit->unit_code;
 
-            if ($consumerHasOtherActiveCase) {
-                throw ValidationException::withMessages(['case_status' => 'Konsumen sudah memiliki sales case aktif lain.']);
-            }
-
-            $oldCase->update([
-                'case_status' => SalesCaseStatus::PindahKavling,
-                'closed_at' => now(),
+            $case->update([
+                'unit_id' => $newUnit->id,
+                'project_id' => $newUnit->project_id,
+                'transfer_reason' => $transferReason,
             ]);
 
             Unit::whereKey($oldUnit->id)->update(['status' => UnitStatus::Tersedia->value]);
+            Unit::whereKey($newUnit->id)->update(['status' => UnitStatus::Booking->value]);
 
-            /** @var SalesCase $newCase */
-            $newCase = SalesCase::create([
-                'consumer_id' => $oldCase->consumer_id,
-                'unit_id' => $newUnit->id,
-                'project_id' => $newUnit->project_id,
-                'branch_id' => $newUnitBranchId,
-                'financing_type' => $oldCase->financing_type,
-                'source' => $oldCase->source,
-                'sales_pic_id' => $oldCase->sales_pic_id,
-                'coordinator_id' => $oldCase->coordinator_id,
-                'current_stage' => SalesCaseStage::DataKonsumen,
-                'case_status' => SalesCaseStatus::Active,
-                'previous_case_id' => $oldCase->id,
-                'transfer_reason' => $transferReason,
+            CaseNote::create([
+                'sales_case_id' => $case->id,
+                'note' => "Pindah kavling dari {$oldUnitCode} ke {$newUnit->unit_code}: {$transferReason}",
                 'created_by' => $user->id,
             ]);
 
-            $newUnit->update(['status' => UnitStatus::Booking]);
-
-            return $newCase;
+            return $case->refresh();
         });
     }
 }
