@@ -463,12 +463,16 @@ class MariadbMagelangMvpTest extends TestCase
 
         $first = $importer->import([$row]);
         $second = $importer->import([$row]);
-        $case = SalesCase::query()->where('magelang_source_id', 'MGL-RERUN-1')->firstOrFail();
+        $case = SalesCase::query()
+            ->where('import_source', 'MARISON_V2_MGL')
+            ->where('import_source_id', 'MGL-RERUN-1')
+            ->firstOrFail();
 
         $this->assertCount(1, $first['imported']);
         $this->assertCount(0, $second['imported']);
         $this->assertSame([$case->id], $second['already_imported']);
-        $this->assertSame(1, SalesCase::query()->where('magelang_source_id', 'MGL-RERUN-1')->count());
+        $this->assertSame('MARISON_V2_MGL', $case->import_source);
+        $this->assertSame(1, SalesCase::query()->where('import_source', 'MARISON_V2_MGL')->where('import_source_id', 'MGL-RERUN-1')->count());
         $this->assertSame(1, $case->psjbs()->count());
         $this->assertSame(1, $case->documentSubmissions()->count());
         $this->assertSame(1, $case->bankProcesses()->count());
@@ -508,20 +512,41 @@ class MariadbMagelangMvpTest extends TestCase
         ]);
 
         $this->assertCount(2, $report['imported']);
-        $this->assertSame(2, SalesCase::query()->whereIn('magelang_source_id', ['MGL-IDENTITY-1', 'MGL-IDENTITY-2'])->count());
+        $this->assertSame(2, SalesCase::query()->whereIn('import_source_id', ['MGL-IDENTITY-1', 'MGL-IDENTITY-2'])->count());
         $this->assertSame(1, Consumer::query()->where('nik', '3374010101900013')->count());
     }
 
-    public function test_magelang_source_identity_has_database_unique_constraint(): void
+    public function test_import_identity_has_composite_database_unique_constraint(): void
     {
-        $case = SalesCase::factory()->create(['magelang_source_id' => 'MGL-UNIQUE']);
+        $case = SalesCase::factory()->create([
+            'import_source' => 'MARISON_V2_MGL',
+            'import_source_id' => 'MGL-UNIQUE',
+        ]);
 
         $this->expectException(UniqueConstraintViolationException::class);
 
         SalesCase::factory()->create([
-            'magelang_source_id' => 'MGL-UNIQUE',
+            'import_source' => 'MARISON_V2_MGL',
+            'import_source_id' => 'MGL-UNIQUE',
             'unit_id' => Unit::factory()->for($case->project)->create()->id,
         ]);
+    }
+
+    public function test_same_import_source_id_can_exist_under_different_sources(): void
+    {
+        $first = SalesCase::factory()->create([
+            'import_source' => 'MARISON_V2_MGL',
+            'import_source_id' => 'SHARED-001',
+        ]);
+
+        $second = SalesCase::factory()->create([
+            'import_source' => 'MARISON_V2_JPR',
+            'import_source_id' => 'SHARED-001',
+            'unit_id' => Unit::factory()->for($first->project)->create()->id,
+        ]);
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertSame(2, SalesCase::query()->where('import_source_id', 'SHARED-001')->count());
     }
 
     public function test_magelang_import_rejects_blank_source_identity_for_review(): void
@@ -552,8 +577,8 @@ class MariadbMagelangMvpTest extends TestCase
             ['id_transaksi_v2' => 'MGL-CLOSE-2', 'nik' => '3374010101900016', 'name' => 'Selesai', 'unit_code' => 'MGL-CLOSE2', 'financing_type' => 'KPR', 'status' => 'SELESAI', 'akad_date' => '2024-07-01', 'bast_date' => '2024-08-01'],
         ]);
 
-        $undated = SalesCase::query()->where('magelang_source_id', 'MGL-CLOSE-1')->firstOrFail();
-        $completed = SalesCase::query()->where('magelang_source_id', 'MGL-CLOSE-2')->firstOrFail();
+        $undated = SalesCase::query()->where('import_source_id', 'MGL-CLOSE-1')->firstOrFail();
+        $completed = SalesCase::query()->where('import_source_id', 'MGL-CLOSE-2')->firstOrFail();
         $this->assertNull($undated->closed_at);
         $this->assertTrue($undated->needs_review);
         $this->assertStringContainsString('missing_closing_date', (string) $undated->needs_review_reason);
@@ -577,7 +602,7 @@ class MariadbMagelangMvpTest extends TestCase
             'bank_name' => 'BTN',
             'sp3k_number' => 'SP3K/REAL/001',
         ]]);
-        $case = SalesCase::query()->where('magelang_source_id', 'MGL-SP3K-NO-DATE')->firstOrFail();
+        $case = SalesCase::query()->where('import_source_id', 'MGL-SP3K-NO-DATE')->firstOrFail();
         $process = $case->bankProcesses()->firstOrFail();
 
         $this->assertCount(1, $report['imported']);

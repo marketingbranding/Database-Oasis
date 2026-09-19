@@ -39,6 +39,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class MagelangImporter
 {
+    private const IMPORT_SOURCE = 'MARISON_V2_MGL';
+
     public function __construct(private Branch $branch, private ?User $actor = null) {}
 
     /**
@@ -105,7 +107,10 @@ final class MagelangImporter
                 continue;
             }
 
-            $existingCase = SalesCase::query()->where('magelang_source_id', $row->sourceId)->first();
+            $existingCase = SalesCase::query()
+                ->where('import_source', self::IMPORT_SOURCE)
+                ->where('import_source_id', $row->sourceId)
+                ->first();
 
             if ($existingCase instanceof SalesCase) {
                 $report['already_imported'][] = $existingCase->id;
@@ -133,7 +138,10 @@ final class MagelangImporter
             try {
                 [$case, $finalAnomalies] = DB::transaction(fn (): array => $this->importRow($row, $unit, $index));
             } catch (UniqueConstraintViolationException $e) {
-                $existingCase = SalesCase::query()->where('magelang_source_id', $row->sourceId)->first();
+                $existingCase = SalesCase::query()
+                    ->where('import_source', self::IMPORT_SOURCE)
+                    ->where('import_source_id', $row->sourceId)
+                    ->first();
 
                 if ($existingCase instanceof SalesCase) {
                     $report['already_imported'][] = $existingCase->id;
@@ -190,7 +198,8 @@ final class MagelangImporter
             'financing_type' => $row->financingType,
             'booking_date' => $row->bookingDate,
             'source' => 'Migrasi Magelang',
-            'magelang_source_id' => $row->sourceId,
+            'import_source' => self::IMPORT_SOURCE,
+            'import_source_id' => $row->sourceId,
             'current_stage' => $row->derivedStage(),
             'case_status' => $row->status,
             'closed_at' => $row->closedAt,
