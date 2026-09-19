@@ -70,9 +70,10 @@ class MariadbMagelangMvpTest extends TestCase
         $path = database_path('migrations/2026_09_02_131522_create_sales_cases_table.php');
         $content = (string) file_get_contents($path);
 
-        // Generated nullable column + unique index replaces the partial index.
-        $this->assertStringContainsString('active_unit_key', $content);
-        $this->assertStringContainsString('storedAs', $content);
+        $this->assertStringContainsString("ulid('active_unit_key')->nullable()", $content);
+        $this->assertStringContainsString('createMysqlTriggerGuard', $content);
+        $this->assertStringNotContainsString('storedAs', $content);
+        $this->assertStringNotContainsString('virtualAs', $content);
         // The consumer ACTIVE guard must not be created anymore.
         $this->assertStringNotContainsString('sales_cases_consumer_active_unique ON sales_cases (consumer_id)', $content);
         // Legacy consumer indexes are still dropped on rollback.

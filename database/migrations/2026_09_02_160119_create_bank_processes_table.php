@@ -39,17 +39,17 @@ return new class extends Migration
             $table->index('sp3k_number');
 
             if (! $partial) {
-                // MariaDB/MySQL: reproduce the partial unique guard. The
-                // truthy check compiles on every driver, so only rows with an
-                // authoritative approval participate in the unique index.
-                $table->ulid('authoritative_case_key')->nullable()
-                    ->storedAs('case when is_authoritative then sales_case_id else null end');
-                $table->unique('authoritative_case_key', 'bank_processes_authoritative_approval_unique');
+                $table->ulid('authoritative_case_key')->nullable();
             }
         });
 
-        // Structural one-authoritative-bank-process-per-sales-case guard.
         PartialUniqueGuard::createPartialUnique('bank_processes', 'bank_processes_authoritative_approval_unique', 'sales_case_id', 'is_authoritative = true');
+        PartialUniqueGuard::createMysqlTriggerGuard(
+            'bank_processes',
+            'bank_processes_authoritative_approval_unique',
+            'authoritative_case_key',
+            'CASE WHEN NEW.is_authoritative = 1 THEN NEW.sales_case_id ELSE NULL END',
+        );
     }
 
     /**
@@ -57,6 +57,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        PartialUniqueGuard::dropMysqlTriggerGuard('bank_processes', 'authoritative_case_key');
         PartialUniqueGuard::dropIndex('bank_processes_authoritative_approval_unique', 'bank_processes');
 
         Schema::dropIfExists('bank_processes');

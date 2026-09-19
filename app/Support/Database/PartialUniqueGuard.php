@@ -34,10 +34,7 @@ final class PartialUniqueGuard
     }
 
     /**
-     * Create a PostgreSQL/SQLite partial unique index. No-op on MySQL/MariaDB,
-     * where callers provide a nullable generated column + plain unique index
-     * instead (unique indexes ignore the NULL rows, reproducing partial
-     * uniqueness).
+     * Create a PostgreSQL/SQLite partial unique index.
      */
     public static function createPartialUnique(string $table, string $index, string $columns, string $predicate): void
     {
@@ -46,6 +43,43 @@ final class PartialUniqueGuard
         }
 
         DB::statement("CREATE UNIQUE INDEX {$index} ON {$table} ({$columns}) WHERE {$predicate}");
+    }
+
+    public static function createMysqlTriggerGuard(
+        string $table,
+        string $index,
+        string $guardColumn,
+        string $guardExpression,
+        ?string $additionalIndexColumn = null,
+    ): void {
+        if (! self::isMysqlFamily()) {
+            return;
+        }
+
+        $insertTrigger = self::triggerName($table, $guardColumn, 'bi');
+        $updateTrigger = self::triggerName($table, $guardColumn, 'bu');
+        $indexColumns = $additionalIndexColumn === null
+            ? $guardColumn
+            : "{$guardColumn}, {$additionalIndexColumn}";
+
+        DB::unprepared("CREATE TRIGGER {$insertTrigger} BEFORE INSERT ON {$table} FOR EACH ROW SET NEW.{$guardColumn} = {$guardExpression}");
+        DB::unprepared("CREATE TRIGGER {$updateTrigger} BEFORE UPDATE ON {$table} FOR EACH ROW SET NEW.{$guardColumn} = {$guardExpression}");
+        DB::statement("CREATE UNIQUE INDEX {$index} ON {$table} ({$indexColumns})");
+    }
+
+    public static function dropMysqlTriggerGuard(string $table, string $guardColumn): void
+    {
+        if (! self::isMysqlFamily()) {
+            return;
+        }
+
+        DB::unprepared('DROP TRIGGER IF EXISTS '.self::triggerName($table, $guardColumn, 'bi'));
+        DB::unprepared('DROP TRIGGER IF EXISTS '.self::triggerName($table, $guardColumn, 'bu'));
+    }
+
+    private static function triggerName(string $table, string $guardColumn, string $event): string
+    {
+        return "{$table}_{$guardColumn}_guard_{$event}";
     }
 
     /**

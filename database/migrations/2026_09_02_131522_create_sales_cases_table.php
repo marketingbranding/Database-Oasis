@@ -43,14 +43,7 @@ return new class extends Migration
             $table->index('current_stage');
 
             if (! $partial) {
-                // MariaDB/MySQL has no partial indexes. The generated column is
-                // NULL for non-ACTIVE rows, and unique indexes ignore NULL
-                // duplicates, so this reproduces "one ACTIVE sales case per
-                // unit". There is intentionally no consumer guard: one consumer
-                // may hold several ACTIVE sales cases.
-                $table->ulid('active_unit_key')->nullable()
-                    ->storedAs("case when case_status = 'ACTIVE' then unit_id else null end");
-                $table->unique('active_unit_key', 'sales_cases_unit_active_unique');
+                $table->ulid('active_unit_key')->nullable();
             }
         });
 
@@ -63,11 +56,13 @@ return new class extends Migration
                 ->nullOnDelete();
         });
 
-        // Structural one-ACTIVE-case-per-unit guard. There is intentionally no
-        // one-ACTIVE-case-per-consumer guard: one consumer may hold several
-        // ACTIVE sales cases. On PostgreSQL/SQLite this is a partial unique
-        // index; on MariaDB/MySQL the generated column above covers it.
         PartialUniqueGuard::createPartialUnique('sales_cases', 'sales_cases_unit_active_unique', 'unit_id', "case_status = 'ACTIVE'");
+        PartialUniqueGuard::createMysqlTriggerGuard(
+            'sales_cases',
+            'sales_cases_unit_active_unique',
+            'active_unit_key',
+            "CASE WHEN NEW.case_status = 'ACTIVE' THEN NEW.unit_id ELSE NULL END",
+        );
     }
 
     /**
@@ -75,6 +70,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        PartialUniqueGuard::dropMysqlTriggerGuard('sales_cases', 'active_unit_key');
         PartialUniqueGuard::dropIndex('sales_cases_unit_active_unique', 'sales_cases');
         PartialUniqueGuard::dropIndex('sales_cases_consumer_active_unique', 'sales_cases');
 

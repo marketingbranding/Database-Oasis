@@ -12,15 +12,16 @@ return new class extends Migration
      * Make business dates on legacy-tolerant intermediate entities nullable so
      * missing historical dates can be stored as NULL + legacy_date_missing.
      *
-     * Guard handling is driver-aware: PostgreSQL/SQLite keep partial unique
-     * indexes (dropped first so SQLite's ALTER TABLE rebuild cannot degrade
-     * them), while MariaDB/MySQL relies on the nullable generated columns
-     * created with the tables. Legacy-date rules are enforced with CHECK
+     * Guard handling is driver-aware: PostgreSQL/SQLite partial unique indexes
+     * are dropped first so SQLite's ALTER TABLE rebuild cannot degrade them.
+     * MariaDB/MySQL trigger-maintained guards remain in place. Legacy-date rules
+     * are enforced with CHECK
      * constraints on PostgreSQL, SQLite triggers on SQLite, and SIGNAL
      * triggers on MariaDB/MySQL.
      */
     public function up(): void
     {
+        $this->dropMysqlGuards();
         PartialUniqueGuard::dropIndex('psjbs_sales_case_active_unique', 'psjbs');
         PartialUniqueGuard::dropIndex('bank_processes_authoritative_approval_unique', 'bank_processes');
         PartialUniqueGuard::dropIndex('developer_ppjbs_sales_case_active_unique', 'developer_ppjbs');
@@ -30,6 +31,7 @@ return new class extends Migration
         PartialUniqueGuard::createPartialUnique('psjbs', 'psjbs_sales_case_active_unique', 'sales_case_id', "status = 'ACTIVE'");
         PartialUniqueGuard::createPartialUnique('bank_processes', 'bank_processes_authoritative_approval_unique', 'sales_case_id', 'is_authoritative = true');
         PartialUniqueGuard::createPartialUnique('developer_ppjbs', 'developer_ppjbs_sales_case_active_unique', 'sales_case_id', "status = 'ACTIVE'");
+        $this->createMysqlGuards();
 
         $this->enforceLegacyDateRule('bi_checks', 'check_date');
         $this->enforceLegacyDateRule('psjbs', 'psjb_date');
@@ -46,6 +48,7 @@ return new class extends Migration
         $this->dropLegacyDateRule('bank_processes', 'response_date');
         $this->dropLegacyDateRule('developer_ppjbs', 'document_date');
 
+        $this->dropMysqlGuards();
         PartialUniqueGuard::dropIndex('psjbs_sales_case_active_unique', 'psjbs');
         PartialUniqueGuard::dropIndex('bank_processes_authoritative_approval_unique', 'bank_processes');
         PartialUniqueGuard::dropIndex('developer_ppjbs_sales_case_active_unique', 'developer_ppjbs');
@@ -55,6 +58,21 @@ return new class extends Migration
         PartialUniqueGuard::createPartialUnique('psjbs', 'psjbs_sales_case_active_unique', 'sales_case_id', "status = 'ACTIVE'");
         PartialUniqueGuard::createPartialUnique('bank_processes', 'bank_processes_authoritative_approval_unique', 'sales_case_id', 'is_authoritative = true');
         PartialUniqueGuard::createPartialUnique('developer_ppjbs', 'developer_ppjbs_sales_case_active_unique', 'sales_case_id', "status = 'ACTIVE'");
+        $this->createMysqlGuards();
+    }
+
+    private function createMysqlGuards(): void
+    {
+        PartialUniqueGuard::createMysqlTriggerGuard('psjbs', 'psjbs_sales_case_active_unique', 'active_psjb_key', "CASE WHEN NEW.status = 'ACTIVE' THEN NEW.sales_case_id ELSE NULL END");
+        PartialUniqueGuard::createMysqlTriggerGuard('bank_processes', 'bank_processes_authoritative_approval_unique', 'authoritative_case_key', 'CASE WHEN NEW.is_authoritative = 1 THEN NEW.sales_case_id ELSE NULL END');
+        PartialUniqueGuard::createMysqlTriggerGuard('developer_ppjbs', 'developer_ppjbs_sales_case_active_unique', 'active_ppjb_key', "CASE WHEN NEW.status = 'ACTIVE' THEN NEW.sales_case_id ELSE NULL END");
+    }
+
+    private function dropMysqlGuards(): void
+    {
+        PartialUniqueGuard::dropMysqlTriggerGuard('psjbs', 'active_psjb_key');
+        PartialUniqueGuard::dropMysqlTriggerGuard('bank_processes', 'authoritative_case_key');
+        PartialUniqueGuard::dropMysqlTriggerGuard('developer_ppjbs', 'active_ppjb_key');
     }
 
     /**

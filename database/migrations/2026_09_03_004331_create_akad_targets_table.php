@@ -26,16 +26,18 @@ return new class extends Migration
             $table->unique(['project_id', 'period_month']);
 
             if (! $partial) {
-                // MariaDB/MySQL: reproduce "unique branch+month when no
-                // project" with a nullable generated column. Project-scoped
-                // rows store NULL and never collide with each other here.
-                $table->ulid('global_branch_key')->nullable()
-                    ->storedAs('case when project_id is null then branch_id else null end');
-                $table->unique(['global_branch_key', 'period_month'], 'akad_targets_branch_month_unique');
+                $table->ulid('global_branch_key')->nullable();
             }
         });
 
         PartialUniqueGuard::createPartialUnique('akad_targets', 'akad_targets_branch_month_unique', 'branch_id, period_month', 'project_id IS NULL');
+        PartialUniqueGuard::createMysqlTriggerGuard(
+            'akad_targets',
+            'akad_targets_branch_month_unique',
+            'global_branch_key',
+            'CASE WHEN NEW.project_id IS NULL THEN NEW.branch_id ELSE NULL END',
+            'period_month',
+        );
 
         if (DB::getDriverName() === 'pgsql') {
             DB::statement('ALTER TABLE akad_targets ADD CONSTRAINT akad_targets_period_first_day_check CHECK (EXTRACT(DAY FROM period_month) = 1)');
@@ -45,6 +47,7 @@ return new class extends Migration
 
     public function down(): void
     {
+        PartialUniqueGuard::dropMysqlTriggerGuard('akad_targets', 'global_branch_key');
         PartialUniqueGuard::dropIndex('akad_targets_branch_month_unique', 'akad_targets');
         Schema::dropIfExists('akad_targets');
     }

@@ -31,17 +31,17 @@ return new class extends Migration
             $table->index('document_number');
 
             if (! $partial) {
-                // MariaDB/MySQL: reproduce the partial unique guard with a
-                // nullable generated column (NULL rows are ignored by the
-                // unique index, so history rows stay unrestricted).
-                $table->ulid('active_psjb_key')->nullable()
-                    ->storedAs("case when status = 'ACTIVE' then sales_case_id else null end");
-                $table->unique('active_psjb_key', 'psjbs_sales_case_active_unique');
+                $table->ulid('active_psjb_key')->nullable();
             }
         });
 
-        // Structural one-ACTIVE-PSJB-per-sales-case guard.
         PartialUniqueGuard::createPartialUnique('psjbs', 'psjbs_sales_case_active_unique', 'sales_case_id', "status = 'ACTIVE'");
+        PartialUniqueGuard::createMysqlTriggerGuard(
+            'psjbs',
+            'psjbs_sales_case_active_unique',
+            'active_psjb_key',
+            "CASE WHEN NEW.status = 'ACTIVE' THEN NEW.sales_case_id ELSE NULL END",
+        );
     }
 
     /**
@@ -49,6 +49,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        PartialUniqueGuard::dropMysqlTriggerGuard('psjbs', 'active_psjb_key');
         PartialUniqueGuard::dropIndex('psjbs_sales_case_active_unique', 'psjbs');
 
         Schema::dropIfExists('psjbs');
