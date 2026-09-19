@@ -41,6 +41,7 @@ final readonly class MagelangSalesCaseRow
         public ?string $ppjbDate,
         public ?string $akadDate,
         public ?string $bastDate,
+        public ?string $closedAt,
         public array $anomalies,
     ) {}
 
@@ -56,6 +57,10 @@ final readonly class MagelangSalesCaseRow
         $nik = $rawNik === '' ? null : $rawNik;
 
         $anomalies = [];
+
+        if ($text('id_transaksi_v2') === null && $text('source_id') === null) {
+            $anomalies[] = 'missing_source_id';
+        }
 
         if ($nik === null) {
             $anomalies[] = 'blank_nik';
@@ -92,6 +97,23 @@ final readonly class MagelangSalesCaseRow
             $anomalies[] = 'bast_without_akad_date';
         }
 
+        $closedAt = match ($status) {
+            SalesCaseStatus::Completed => $bastDate,
+            SalesCaseStatus::Mundur => $date('withdrawal_date') ?? $date('mundur_date'),
+            SalesCaseStatus::Reject => $date('reject_date') ?? $date('rejected_date'),
+            default => null,
+        };
+
+        if ($status !== SalesCaseStatus::Active && $closedAt === null) {
+            $anomalies[] = 'missing_closing_date';
+        }
+
+        if (($text('sp3k_number') ?? $text('sp3kNumber')) !== null
+            && ($date('sp3k_date') ?? $date('sp3kDate')) === null
+            && ($date('bank_process_date') ?? $date('bankProcessDate')) === null) {
+            $anomalies[] = 'missing_bank_response_date';
+        }
+
         return new self(
             sourceId: $text('id_transaksi_v2') ?? $text('source_id'),
             nik: $nik !== null && preg_match('/^\d{16}$/', $nik) ? $nik : null,
@@ -113,6 +135,7 @@ final readonly class MagelangSalesCaseRow
             ppjbDate: $date('ppjb_date') ?? $date('ppjbDate'),
             akadDate: $akadDate,
             bastDate: $bastDate,
+            closedAt: $closedAt,
             anomalies: array_values(array_unique($anomalies)),
         );
     }

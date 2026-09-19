@@ -32,10 +32,10 @@ use Illuminate\Support\Facades\DB;
  * Principles: import every row whose unit can be resolved (relational
  * integrity is the only hard requirement); never fabricate NIK values or
  * milestone dates; never merge sales cases; flag every anomaly with the
- * PERLU DICEK marker instead of dropping the row. One-shot, non-idempotent:
- * run profile() first, fix unit mappings, then import once.
+ * PERLU DICEK marker instead of dropping the row. Durable source identity makes
+ * reruns safe without duplicating sales cases or their process rows.
  *
- * @phpstan-type MagelangReport array{imported: list<string>, failed: list<array{source_id: ?string, error: string}>, anomalies: array<string, int>}
+ * @phpstan-type MagelangReport array{imported: list<string>, already_imported: list<string>, failed: list<array{source_id: ?string, error: string}>, anomalies: array<string, int>}
  */
 final class MagelangImporter
 {
@@ -84,8 +84,10 @@ final class MagelangImporter
      */
     public function import(array $rows): array
     {
-        $report = ['imported' => [], 'failed' => [], 'anomalies' => []];
-        $count = fn (string $code): int => $report['anomalies'][$code] = ($report['anomalies'][$code] ?? 0) + 1;
+        $report = ['imported' => [], 'already_imported' => [], 'failed' => [], 'anomalies' => []];
+        $count = function (string $code) use (&$report): int {
+            return $report['anomalies'][$code] = ($report['anomalies'][$code] ?? 0) + 1;
+        };
 
         $units = $this->unitsByCode();
         $claimedUnitIds = [];
@@ -95,6 +97,20 @@ final class MagelangImporter
 
             foreach ($row->anomalies as $code) {
                 $count($code);
+            }
+
+            if ($row->sourceId === null) {
+                $report['failed'][] = ['source_id' => null, 'error' => 'PERLU DICEK: id_transaksi_v2 kosong; baris tidak diimpor karena identitas transaksi tidak dapat dijamin.'];
+
+                continue;
+            }
+
+            $existingCase = SalesCase::query()->where('magelang_source_id', $row->sourceId)->first();
+
+            if ($existingCase instanceof SalesCase) {
+                $report['already_imported'][] = $existingCase->id;
+
+                continue;
             }
 
             $unit = $row->unitCode !== null ? ($units[$row->unitCode] ?? null) : null;
@@ -117,6 +133,14 @@ final class MagelangImporter
             try {
                 [$case, $finalAnomalies] = DB::transaction(fn (): array => $this->importRow($row, $unit, $index));
             } catch (UniqueConstraintViolationException $e) {
+                $existingCase = SalesCase::query()->where('magelang_source_id', $row->sourceId)->first();
+
+                if ($existingCase instanceof SalesCase) {
+                    $report['already_imported'][] = $existingCase->id;
+
+                    continue;
+                }
+
                 $count('unit_conflict');
                 $report['failed'][] = ['source_id' => $row->sourceId, 'error' => 'Konflik unit ACTIVE yang bersamaan: '.$e->getMessage()];
 
@@ -166,10 +190,11 @@ final class MagelangImporter
             'financing_type' => $row->financingType,
             'booking_date' => $row->bookingDate,
             'source' => 'Migrasi Magelang',
+            'magelang_source_id' => $row->sourceId,
             'current_stage' => $row->derivedStage(),
             'case_status' => $row->status,
-            'closed_at' => $row->status === SalesCaseStatus::Active ? null : now(),
-            'closed_reason' => $row->status === SalesCaseStatus::Active ? null : 'Migrasi Magelang',
+            'closed_at' => $row->closedAt,
+            'closed_reason' => $row->closedAt === null ? null : 'Migrasi Magelang',
             'needs_review' => $rowAnomalies !== [],
             'needs_review_reason' => $rowAnomalies === [] ? null : $this->reason($row, $rowAnomalies),
             'created_by' => $this->actor?->id,
@@ -215,6 +240,7 @@ final class MagelangImporter
                 'is_authoritative' => $row->hasSp3kEvidence(),
                 'created_by' => $this->actor?->id,
                 'is_legacy_import' => true,
+                'legacy_date_missing' => $row->sp3kDate === null && $row->bankProcessDate === null,
             ]);
         }
 

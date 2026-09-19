@@ -438,6 +438,156 @@ class MariadbMagelangMvpTest extends TestCase
         $this->assertTrue($cash->current_stage === SalesCaseStage::Pemberkasan);
     }
 
+    public function test_magelang_import_full_rerun_skips_case_and_process_rows(): void
+    {
+        $branch = $this->magelangBranch();
+        $this->makeUnit($branch, 'MGL-R1');
+        Bank::factory()->create(['name' => 'BTN']);
+        $row = [
+            'id_transaksi_v2' => 'MGL-RERUN-1',
+            'nik' => '3374010101900010',
+            'name' => 'Rerun Lengkap',
+            'unit_code' => 'MGL-R1',
+            'financing_type' => 'KPR',
+            'status' => 'SELESAI',
+            'psjb_date' => '2023-02-01',
+            'pemberkasan_date' => '2023-03-01',
+            'bank_name' => 'BTN',
+            'sp3k_number' => 'SP3K/RERUN',
+            'sp3k_date' => '2023-05-01',
+            'ppjb_date' => '2023-06-01',
+            'akad_date' => '2023-07-01',
+            'bast_date' => '2023-08-01',
+        ];
+        $importer = app(MagelangImporter::class, ['branch' => $branch]);
+
+        $first = $importer->import([$row]);
+        $second = $importer->import([$row]);
+        $case = SalesCase::query()->where('magelang_source_id', 'MGL-RERUN-1')->firstOrFail();
+
+        $this->assertCount(1, $first['imported']);
+        $this->assertCount(0, $second['imported']);
+        $this->assertSame([$case->id], $second['already_imported']);
+        $this->assertSame(1, SalesCase::query()->where('magelang_source_id', 'MGL-RERUN-1')->count());
+        $this->assertSame(1, $case->psjbs()->count());
+        $this->assertSame(1, $case->documentSubmissions()->count());
+        $this->assertSame(1, $case->bankProcesses()->count());
+        $this->assertSame(1, $case->developerPpjbs()->count());
+        $this->assertNotNull($case->akad);
+        $this->assertNotNull($case->bast);
+    }
+
+    public function test_magelang_import_partial_rerun_imports_only_missing_transaction(): void
+    {
+        $branch = $this->magelangBranch();
+        $this->makeUnit($branch, 'MGL-P1');
+        $this->makeUnit($branch, 'MGL-P2');
+        $firstRow = ['id_transaksi_v2' => 'MGL-PARTIAL-1', 'nik' => '3374010101900011', 'name' => 'Pertama', 'unit_code' => 'MGL-P1', 'financing_type' => 'KPR', 'status' => 'AKTIF', 'psjb_date' => '2024-01-01'];
+        $secondRow = ['id_transaksi_v2' => 'MGL-PARTIAL-2', 'nik' => '3374010101900012', 'name' => 'Kedua', 'unit_code' => 'MGL-P2', 'financing_type' => 'KPR', 'status' => 'AKTIF', 'psjb_date' => '2024-01-02'];
+        $importer = app(MagelangImporter::class, ['branch' => $branch]);
+        $importer->import([$firstRow]);
+
+        $report = $importer->import([$firstRow, $secondRow]);
+
+        $this->assertCount(1, $report['already_imported']);
+        $this->assertCount(1, $report['imported']);
+        $this->assertSame(2, SalesCase::query()->count());
+        $this->assertSame(2, Psjb::query()->count());
+    }
+
+    public function test_magelang_source_identity_is_transaction_not_nik(): void
+    {
+        $branch = $this->magelangBranch();
+        $this->makeUnit($branch, 'MGL-I1');
+        $this->makeUnit($branch, 'MGL-I2');
+        $importer = app(MagelangImporter::class, ['branch' => $branch]);
+
+        $report = $importer->import([
+            ['id_transaksi_v2' => 'MGL-IDENTITY-1', 'nik' => '3374010101900013', 'name' => 'Sama', 'unit_code' => 'MGL-I1', 'financing_type' => 'KPR', 'status' => 'AKTIF'],
+            ['id_transaksi_v2' => 'MGL-IDENTITY-2', 'nik' => '3374010101900013', 'name' => 'Sama', 'unit_code' => 'MGL-I2', 'financing_type' => 'KPR', 'status' => 'AKTIF'],
+        ]);
+
+        $this->assertCount(2, $report['imported']);
+        $this->assertSame(2, SalesCase::query()->whereIn('magelang_source_id', ['MGL-IDENTITY-1', 'MGL-IDENTITY-2'])->count());
+        $this->assertSame(1, Consumer::query()->where('nik', '3374010101900013')->count());
+    }
+
+    public function test_magelang_source_identity_has_database_unique_constraint(): void
+    {
+        $case = SalesCase::factory()->create(['magelang_source_id' => 'MGL-UNIQUE']);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        SalesCase::factory()->create([
+            'magelang_source_id' => 'MGL-UNIQUE',
+            'unit_id' => Unit::factory()->for($case->project)->create()->id,
+        ]);
+    }
+
+    public function test_magelang_import_rejects_blank_source_identity_for_review(): void
+    {
+        $branch = $this->magelangBranch();
+        $this->makeUnit($branch, 'MGL-BLANK');
+
+        $report = app(MagelangImporter::class, ['branch' => $branch])->import([
+            ['id_transaksi_v2' => '', 'nik' => '3374010101900014', 'name' => 'Tanpa ID', 'unit_code' => 'MGL-BLANK', 'financing_type' => 'KPR', 'status' => 'AKTIF'],
+        ]);
+
+        $this->assertCount(0, $report['imported']);
+        $this->assertCount(1, $report['failed']);
+        $this->assertSame(1, $report['anomalies']['missing_source_id']);
+        $this->assertStringContainsString('PERLU DICEK', $report['failed'][0]['error']);
+        $this->assertSame(0, SalesCase::query()->count());
+    }
+
+    public function test_magelang_import_never_uses_execution_time_as_closed_at(): void
+    {
+        $branch = $this->magelangBranch();
+        $this->makeUnit($branch, 'MGL-CLOSE1');
+        $this->makeUnit($branch, 'MGL-CLOSE2');
+        $this->travelTo('2026-09-19 12:00:00');
+
+        app(MagelangImporter::class, ['branch' => $branch])->import([
+            ['id_transaksi_v2' => 'MGL-CLOSE-1', 'nik' => '3374010101900015', 'name' => 'Mundur', 'unit_code' => 'MGL-CLOSE1', 'financing_type' => 'KPR', 'status' => 'MUNDUR'],
+            ['id_transaksi_v2' => 'MGL-CLOSE-2', 'nik' => '3374010101900016', 'name' => 'Selesai', 'unit_code' => 'MGL-CLOSE2', 'financing_type' => 'KPR', 'status' => 'SELESAI', 'akad_date' => '2024-07-01', 'bast_date' => '2024-08-01'],
+        ]);
+
+        $undated = SalesCase::query()->where('magelang_source_id', 'MGL-CLOSE-1')->firstOrFail();
+        $completed = SalesCase::query()->where('magelang_source_id', 'MGL-CLOSE-2')->firstOrFail();
+        $this->assertNull($undated->closed_at);
+        $this->assertTrue($undated->needs_review);
+        $this->assertStringContainsString('missing_closing_date', (string) $undated->needs_review_reason);
+        $this->assertSame('2024-08-01', $completed->closed_at?->toDateString());
+        $this->assertNotSame('2026-09-19', $completed->closed_at?->toDateString());
+    }
+
+    public function test_magelang_sp3k_without_dates_uses_legacy_missing_date_flag(): void
+    {
+        $branch = $this->magelangBranch();
+        $this->makeUnit($branch, 'MGL-SP3K');
+        Bank::factory()->create(['name' => 'BTN']);
+
+        $report = app(MagelangImporter::class, ['branch' => $branch])->import([[
+            'id_transaksi_v2' => 'MGL-SP3K-NO-DATE',
+            'nik' => '3374010101900017',
+            'name' => 'SP3K Tanpa Tanggal',
+            'unit_code' => 'MGL-SP3K',
+            'financing_type' => 'KPR',
+            'status' => 'AKTIF',
+            'bank_name' => 'BTN',
+            'sp3k_number' => 'SP3K/REAL/001',
+        ]]);
+        $case = SalesCase::query()->where('magelang_source_id', 'MGL-SP3K-NO-DATE')->firstOrFail();
+        $process = $case->bankProcesses()->firstOrFail();
+
+        $this->assertCount(1, $report['imported']);
+        $this->assertSame('SP3K/REAL/001', $process->sp3k_number);
+        $this->assertNull($process->response_date);
+        $this->assertNull($process->sp3k_date);
+        $this->assertTrue($process->legacy_date_missing);
+        $this->assertTrue($case->needs_review);
+    }
+
     public function test_magelang_profile_counts_anomalies_without_writing(): void
     {
         $branch = $this->magelangBranch();

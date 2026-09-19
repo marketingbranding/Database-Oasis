@@ -24,6 +24,7 @@ class BankProcess extends Model
             'credit_limit' => 'integer',
             'tenor' => 'integer',
             'is_authoritative' => 'boolean',
+            'legacy_date_missing' => 'boolean',
         ];
     }
 
