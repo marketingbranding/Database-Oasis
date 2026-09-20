@@ -36,13 +36,17 @@ return new class extends Migration
             $table->foreignUlid('operation_id')->nullable()->after('plan_id')->constrained('legacy_migration_plan_operations')->restrictOnDelete();
             $table->string('target_type')->nullable()->after('entity_type');
             $table->ulid('target_id')->nullable()->after('target_type');
-            $table->index(['execution_id', 'target_type', 'target_id']);
+            $table->index(
+                ['execution_id', 'target_type', 'target_id'],
+                'legacy_mig_prov_exec_target_idx',
+            );
         });
     }
 
     public function down(): void
     {
         Schema::table('legacy_migration_provenances', function (Blueprint $table) {
+            $table->dropIndex('legacy_mig_prov_exec_target_idx');
             $table->dropConstrainedForeignId('execution_id');
             $table->dropConstrainedForeignId('plan_id');
             $table->dropConstrainedForeignId('operation_id');
