@@ -7,7 +7,7 @@ use App\Models\SalesCase;
 use App\Models\Unit;
 use App\Models\User;
 use App\SalesCaseStatus;
-use App\UnitStatus;
+use App\Services\UnitStatusResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -69,8 +69,8 @@ class MoveSalesCaseUnitAction
                 throw ValidationException::withMessages(['new_unit_id' => 'Unit baru sama dengan unit saat ini.']);
             }
 
-            if ($newUnit->activeSalesCase()->exists()) {
-                throw ValidationException::withMessages(['new_unit_id' => 'Unit baru sudah memiliki sales case aktif.']);
+            if (! Unit::available()->whereKey($newUnit->id)->exists()) {
+                throw ValidationException::withMessages(['new_unit_id' => 'Kavling tujuan tidak tersedia.']);
             }
 
             $oldUnitCode = $oldUnit?->unit_code;
@@ -81,11 +81,9 @@ class MoveSalesCaseUnitAction
                 'transfer_reason' => $transferReason,
             ]);
 
-            if ($oldUnit !== null) {
-                Unit::whereKey($oldUnit->id)->update(['status' => UnitStatus::Tersedia->value]);
-            }
-
-            Unit::whereKey($newUnit->id)->update(['status' => UnitStatus::Booking->value]);
+            $resolver = app(UnitStatusResolver::class);
+            $resolver->reconcile($oldUnit);
+            $resolver->reconcile($newUnit);
 
             CaseNote::create([
                 'sales_case_id' => $case->id,

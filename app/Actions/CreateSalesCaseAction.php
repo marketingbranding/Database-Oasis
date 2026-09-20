@@ -10,7 +10,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
-use App\UnitStatus;
+use App\Services\UnitStatusResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -34,6 +34,14 @@ class CreateSalesCaseAction
             $unit = filled($data['unit_id'] ?? null)
                 ? Unit::whereKey($data['unit_id'])->lockForUpdate()->firstOrFail()
                 : null;
+
+            if ($unit !== null) {
+                app(UnitStatusResolver::class)->reconcile($unit);
+            }
+
+            if ($unit !== null && ! Unit::available()->whereKey($unit->id)->exists()) {
+                throw ValidationException::withMessages(['unit_id' => 'Kavling tidak tersedia untuk transaksi baru.']);
+            }
             /** @var Project $project */
             $project = Project::whereKey($unit?->project_id ?? ($data['project_id'] ?? null))->firstOrFail();
 
@@ -68,7 +76,7 @@ class CreateSalesCaseAction
                 throw ValidationException::withMessages(['unit_id' => 'Unit sudah memiliki sales case aktif.']);
             }
 
-            $unit?->update(['status' => UnitStatus::Booking]);
+            app(UnitStatusResolver::class)->reconcile($unit);
 
             return $case;
         });

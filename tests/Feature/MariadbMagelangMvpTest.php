@@ -688,7 +688,7 @@ class MariadbMagelangMvpTest extends TestCase
         app(MagelangImporter::class, ['branch' => $branch])->refreshUnitStatuses();
 
         $this->assertTrue($activeUnit->fresh()->status === UnitStatus::Booking);
-        $this->assertTrue($completedUnit->fresh()->status === UnitStatus::Terjual);
+        $this->assertTrue($completedUnit->fresh()->status === UnitStatus::Tersedia);
         $this->assertTrue($mundurUnit->fresh()->status === UnitStatus::Tersedia);
     }
 

@@ -6,11 +6,10 @@ use App\DeveloperPpjbStatus;
 use App\Models\AkadRecord;
 use App\Models\DeveloperPpjb;
 use App\Models\SalesCase;
-use App\Models\Unit;
 use App\Models\User;
 use App\SalesCaseStatus;
 use App\Services\SalesCaseStageResolver;
-use App\UnitStatus;
+use App\Services\UnitStatusResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -48,7 +47,7 @@ class CreateAkadAction
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case atau PPJB sudah memiliki Akad.']);
             }
             app(SalesCaseStageResolver::class)->reconcile($case);
-            Unit::whereKey($case->unit_id)->update(['status' => UnitStatus::Terjual->value]);
+            app(UnitStatusResolver::class)->reconcile($case->unit_id);
 
             return $akad;
         });

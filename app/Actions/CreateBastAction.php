@@ -10,6 +10,7 @@ use App\Models\User;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use App\Services\SalesCaseStageResolver;
+use App\Services\UnitStatusResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -53,6 +54,7 @@ class CreateBastAction
                 'closed_reason' => 'BAST completed',
             ]);
             app(SalesCaseStageResolver::class)->reconcile($case);
+            app(UnitStatusResolver::class)->reconcile($case->unit_id);
 
             return $bast;
         });

@@ -171,7 +171,7 @@ class SalesCaseForm
 
         $units = Unit::query()
             ->with('project')
-            ->whereDoesntHave('activeSalesCase')
+            ->available()
             ->when(filled($projectId), fn (Builder $query) => $query->where('project_id', $projectId))
             ->when(filled($search), fn (Builder $query) => $query->where(
                 fn (Builder $query) => $query

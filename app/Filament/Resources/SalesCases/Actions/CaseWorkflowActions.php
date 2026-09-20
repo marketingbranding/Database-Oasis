@@ -130,7 +130,7 @@ class CaseWorkflowActions
         $units = Unit::query()
             ->with('project')
             ->whereKeyNot($record->unit_id)
-            ->whereDoesntHave('activeSalesCase')
+            ->available()
             ->whereHas('project', fn (Builder $query) => $query->where('branch_id', $record->branch_id))
             ->when(filled($search), fn (Builder $query) => $query->where('unit_code', 'like', "%{$search}%"))
             ->limit(50)

@@ -3,10 +3,9 @@
 namespace App\Actions;
 
 use App\Models\SalesCase;
-use App\Models\Unit;
 use App\Models\User;
 use App\SalesCaseStatus;
-use App\UnitStatus;
+use App\Services\UnitStatusResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -37,22 +36,9 @@ abstract class CloseSalesCaseAction
                 'closed_reason' => $reason,
             ]);
 
-            $this->releaseUnitIfNoActiveCase($case);
+            app(UnitStatusResolver::class)->reconcile($case->unit_id);
 
             return $case->refresh();
         });
-    }
-
-    protected function releaseUnitIfNoActiveCase(SalesCase $case): void
-    {
-        $stillActive = SalesCase::query()
-            ->where('unit_id', $case->unit_id)
-            ->where('case_status', SalesCaseStatus::Active->value)
-            ->whereKeyNot($case->id)
-            ->exists();
-
-        if (! $stillActive) {
-            Unit::whereKey($case->unit_id)->update(['status' => UnitStatus::Tersedia->value]);
-        }
     }
 }

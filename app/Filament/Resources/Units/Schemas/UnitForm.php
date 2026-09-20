@@ -68,6 +68,7 @@ class UnitForm
                     ->label('Status')
                     ->options(UnitStatus::class)
                     ->default(UnitStatus::Tersedia)
+                    ->disabled(fn (string $operation, ?Unit $record): bool => $operation !== 'create' || ($record?->salesCases()->exists() ?? false))
                     ->required(),
                 TextInput::make('building_progress')
                     ->label('Progres Bangunan')

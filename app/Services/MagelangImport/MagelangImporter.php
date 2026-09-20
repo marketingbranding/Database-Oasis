@@ -25,7 +25,7 @@ use App\PsjbStatus;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use App\Services\SalesCaseStageResolver;
-use App\UnitStatus;
+use App\Services\UnitStatusResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
@@ -444,25 +444,12 @@ final class MagelangImporter
 
     public function refreshUnitStatuses(): void
     {
+        $resolver = app(UnitStatusResolver::class);
+
         foreach ($this->unitsByCode() as $unit) {
-            $cases = SalesCase::query()->where('unit_id', $unit->id);
-
-            if (! (clone $cases)->exists()) {
-                continue;
+            if (SalesCase::query()->where('unit_id', $unit->id)->exists()) {
+                $resolver->reconcile($unit);
             }
-
-            $hasActive = (clone $cases)
-                ->where('case_status', SalesCaseStatus::Active->value)
-                ->exists();
-            $hasCompleted = (clone $cases)
-                ->where('case_status', SalesCaseStatus::Completed->value)
-                ->exists();
-
-            $status = $hasActive
-                ? UnitStatus::Booking
-                : ($hasCompleted ? UnitStatus::Terjual : UnitStatus::Tersedia);
-
-            Unit::whereKey($unit->id)->update(['status' => $status->value]);
         }
     }
 }

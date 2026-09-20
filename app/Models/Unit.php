@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\SalesCaseStatus;
 use App\UnitStatus;
 use App\UtilityStatus;
 use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -31,6 +33,18 @@ class Unit extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /** @param Builder<self> $query */
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query
+            ->where('status', UnitStatus::Tersedia->value)
+            ->whereDoesntHave('salesCases', fn (Builder $query): Builder => $query->where(
+                'case_status',
+                SalesCaseStatus::Active->value,
+            ))
+            ->whereDoesntHave('salesCases', fn (Builder $query): Builder => $query->whereHas('akad'));
     }
 
     /** @return HasMany<SalesCase, $this> */
