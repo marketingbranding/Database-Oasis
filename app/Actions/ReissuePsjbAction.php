@@ -28,6 +28,7 @@ class ReissuePsjbAction
         return DB::transaction(function () use ($user, $case, $data): Psjb {
             /** @var SalesCase $case */
             $case = SalesCase::whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $case->ensureAssignedUnit();
 
             if ($user->isBranchScoped() && ! $user->belongsToBranch($case->branch_id)) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case berada di luar cabang Anda.']);

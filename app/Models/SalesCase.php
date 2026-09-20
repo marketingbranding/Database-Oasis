@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 
 #[Fillable(['consumer_id', 'unit_id', 'project_id', 'branch_id', 'financing_type', 'booking_date', 'source', 'import_source', 'import_source_id', 'current_stage', 'case_status', 'previous_case_id', 'transfer_reason', 'needs_review', 'needs_review_reason', 'sales_pic_id', 'coordinator_id', 'closed_at', 'closed_reason', 'created_by', 'is_legacy_import'])]
 class SalesCase extends Model
@@ -347,6 +348,15 @@ class SalesCase extends Model
         return true;
     }
 
+    public function ensureAssignedUnit(): void
+    {
+        if ($this->unit_id === null) {
+            throw ValidationException::withMessages([
+                'sales_case_id' => 'Konsumen masih Waiting List. Tentukan kavling terlebih dahulu.',
+            ]);
+        }
+    }
+
     /**
      * ACTIVE sales cases pickable in transaction forms, scoped to the user's
      * branch, searchable by consumer name/NIK or unit code.
@@ -357,6 +367,7 @@ class SalesCase extends Model
     {
         return self::query()
             ->where('case_status', SalesCaseStatus::Active->value)
+            ->whereNotNull('unit_id')
             ->with(['consumer', 'unit'])
             ->when($user?->isBranchScoped(), fn (Builder $query) => $query->where('branch_id', $user->branch_id))
             ->when(filled($search), fn (Builder $query) => $query->where(

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Actions\CancelSalesCaseAction;
 use App\Actions\CreateSalesCaseAction;
 use App\Actions\MarkSalesCaseMundurAction;
 use App\Actions\MarkSalesCaseRejectedAction;
@@ -93,9 +92,9 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         $user = $this->hqAdmin();
         $case = $this->activeCase($user);
 
-        $closed = app(CancelSalesCaseAction::class)->handle($user, $case);
+        $closed = app(MarkSalesCaseMundurAction::class)->handle($user, $case, 'Tidak lanjut');
 
-        $this->assertTrue($closed->case_status === SalesCaseStatus::Cancelled);
+        $this->assertTrue($closed->case_status === SalesCaseStatus::Mundur);
         $this->assertNotNull($closed->closed_at);
         $this->assertSame(UnitStatus::Tersedia->value, $closed->unit()->first()->status->value);
     }
@@ -260,7 +259,7 @@ class PhaseTwoCaseWorkflowTest extends TestCase
             'consumer_id' => $sri->id,
         ]);
 
-        app(CancelSalesCaseAction::class)->handle($user, $caseK20);
+        app(MarkSalesCaseMundurAction::class)->handle($user, $caseK20, 'Tidak lanjut');
 
         $caseK15 = app(CreateSalesCaseAction::class)->handle($user, [
             'unit_id' => $this->makeUnit($branch)->id,

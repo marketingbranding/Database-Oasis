@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Actions\CancelSalesCaseAction;
 use App\Actions\CompleteCashPemberkasanAction;
 use App\Actions\CreateAkadAction;
 use App\Actions\CreateBastAction;
@@ -211,7 +210,7 @@ class PhaseSixWorkspaceTest extends TestCase
 
         // Hidden action cannot bypass: domain still rejects post-Akad closure.
         $this->expectException(ValidationException::class);
-        app(CancelSalesCaseAction::class)->handle($this->hq, $completed, 'nope');
+        app(MarkSalesCaseMundurAction::class)->handle($this->hq, $completed, 'nope');
     }
 
     public function test_pindah_kavling_keeps_single_active_case_with_traceable_note(): void

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\SalesCases\Actions;
 
-use App\Actions\CancelSalesCaseAction as CancelCase;
 use App\Actions\MarkSalesCaseMundurAction as MarkMundur;
 use App\Actions\MarkSalesCaseRejectedAction as MarkRejected;
 use App\Actions\MoveSalesCaseUnitAction as MoveUnit;
@@ -29,11 +28,6 @@ class CaseWorkflowActions
     public static function reject(): Action
     {
         return self::closeAction('markRejected', 'Reject Case', Heroicon::OutlinedXCircle, MarkRejected::class, reasonRequired: true);
-    }
-
-    public static function cancel(): Action
-    {
-        return self::closeAction('cancelCase', 'Cancel', Heroicon::OutlinedMinusCircle, CancelCase::class, reasonRequired: false);
     }
 
     public static function move(): Action

@@ -22,6 +22,7 @@ class ReissueDeveloperPpjbAction
         return DB::transaction(function () use ($user, $case, $data): DeveloperPpjb {
             /** @var SalesCase $case */
             $case = SalesCase::whereKey($case->id)->lockForUpdate()->firstOrFail();
+            $case->ensureAssignedUnit();
             if ($case->case_status !== SalesCaseStatus::Active || $case->akad()->exists()) {
                 throw ValidationException::withMessages(['sales_case_id' => 'PPJB tidak dapat di-reissue setelah Akad atau case ditutup.']);
             }

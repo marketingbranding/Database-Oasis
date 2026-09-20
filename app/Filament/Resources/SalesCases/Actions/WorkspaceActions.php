@@ -95,9 +95,6 @@ class WorkspaceActions
             'markRejected' => CaseWorkflowActions::reject()->visible(
                 fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active && ! $case->akad()->exists() && self::canUpdate($case)
             ),
-            'cancelCase' => CaseWorkflowActions::cancel()->visible(
-                fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active && ! $case->akad()->exists() && self::canUpdate($case)
-            ),
         ];
 
         return collect($actions)->reject(fn (Action $action, string $name): bool => in_array($name, $exclude, true))->values()->all();

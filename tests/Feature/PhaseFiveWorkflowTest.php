@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Actions\CancelDeveloperPpjbAction;
-use App\Actions\CancelSalesCaseAction;
 use App\Actions\CompleteCashPemberkasanAction;
 use App\Actions\CreateAkadAction;
 use App\Actions\CreateBastAction;
@@ -162,7 +161,7 @@ class PhaseFiveWorkflowTest extends TestCase
 
         $this->expectValidation(fn () => app(MarkSalesCaseMundurAction::class)->handle($this->hq, $case, 'x'));
         $this->expectValidation(fn () => app(MarkSalesCaseRejectedAction::class)->handle($this->hq, $case, 'x'));
-        $this->expectValidation(fn () => app(CancelSalesCaseAction::class)->handle($this->hq, $case, 'x'));
+        $this->expectValidation(fn () => app(MarkSalesCaseMundurAction::class)->handle($this->hq, $case, 'x'));
         $this->expectValidation(fn () => app(MoveSalesCaseUnitAction::class)->handle($this->hq, $case, Unit::factory()->for(Project::factory()->for($case->branch))->create()->id, 'x'));
         $this->expectValidation(fn () => app(ReissueDeveloperPpjbAction::class)->handle($this->hq, $case, ['document_date' => '2026-09-23']));
         $this->expectValidation(fn () => app(CancelDeveloperPpjbAction::class)->handle($this->hq, $ppjb));

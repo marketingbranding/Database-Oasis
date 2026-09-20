@@ -107,7 +107,6 @@ class SalesCasesTable
                     ->label('Ubah'),
                 CaseWorkflowActions::mundur(),
                 CaseWorkflowActions::reject(),
-                CaseWorkflowActions::cancel(),
                 CaseWorkflowActions::move(),
             ])
             ->defaultSort('created_at', 'desc');

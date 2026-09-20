@@ -26,6 +26,7 @@ class CreateBastAction
         return DB::transaction(function () use ($user, $data): BastRecord {
             /** @var SalesCase $case */
             $case = SalesCase::whereKey($data['sales_case_id'] ?? null)->lockForUpdate()->firstOrFail();
+            $case->ensureAssignedUnit();
             if ($user->isBranchScoped() && ! $user->belongsToBranch($case->branch_id)) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case berada di luar cabang Anda.']);
             }
