@@ -447,9 +447,7 @@ final class MagelangImporter
         $resolver = app(UnitStatusResolver::class);
 
         foreach ($this->unitsByCode() as $unit) {
-            if (SalesCase::query()->where('unit_id', $unit->id)->exists()) {
-                $resolver->reconcile($unit);
-            }
+            $resolver->reconcile($unit);
         }
     }
 }

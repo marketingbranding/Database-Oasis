@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Units\Schemas;
 
 use App\Models\Unit;
 use App\Models\User;
-use App\UnitStatus;
 use App\UtilityStatus;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -64,12 +63,6 @@ class UnitForm
                 TextInput::make('number')
                     ->label('Nomor')
                     ->maxLength(255),
-                Select::make('status')
-                    ->label('Status')
-                    ->options(UnitStatus::class)
-                    ->default(UnitStatus::Tersedia)
-                    ->disabled(fn (string $operation, ?Unit $record): bool => $operation !== 'create' || ($record?->salesCases()->exists() ?? false))
-                    ->required(),
                 TextInput::make('building_progress')
                     ->label('Progres Bangunan')
                     ->numeric()

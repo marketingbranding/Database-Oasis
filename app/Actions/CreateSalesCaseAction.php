@@ -35,10 +35,6 @@ class CreateSalesCaseAction
                 ? Unit::whereKey($data['unit_id'])->lockForUpdate()->firstOrFail()
                 : null;
 
-            if ($unit !== null) {
-                app(UnitStatusResolver::class)->reconcile($unit);
-            }
-
             if ($unit !== null && ! Unit::available()->whereKey($unit->id)->exists()) {
                 throw ValidationException::withMessages(['unit_id' => 'Kavling tidak tersedia untuk transaksi baru.']);
             }

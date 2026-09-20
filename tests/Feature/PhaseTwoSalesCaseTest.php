@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\CreateSalesCaseAction;
+use App\Actions\MarkSalesCaseMundurAction;
 use App\Filament\Resources\SalesCases\Pages\CreateSalesCase;
 use App\Filament\Resources\SalesCases\Pages\EditSalesCase;
 use App\Filament\Resources\SalesCases\Pages\ListSalesCases;
@@ -15,6 +16,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\UnitStatusResolver;
 use App\UnitStatus;
 use App\UserRole;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -182,8 +184,8 @@ class PhaseTwoSalesCaseTest extends TestCase
         $consumer = Consumer::factory()->create();
 
         $first = $this->createCase($user, $unit, ['consumer_id' => $consumer->id]);
-        $first->update(['case_status' => SalesCaseStatus::Mundur, 'closed_at' => now()]);
-        $unit->update(['status' => UnitStatus::Tersedia]);
+        app(MarkSalesCaseMundurAction::class)->handle($user, $first, 'Tidak lanjut');
+        app(UnitStatusResolver::class)->reconcile($unit);
 
         $second = $this->createCase($user, $unit, ['consumer_id' => $consumer->id]);
 

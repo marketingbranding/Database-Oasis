@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\CreateSalesCaseAction;
+use App\Actions\MarkSalesCaseMundurAction;
 use App\Actions\MoveSalesCaseUnitAction;
 use App\DeveloperPpjbStatus;
 use App\FinancingType;
@@ -20,6 +21,7 @@ use App\PsjbStatus;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use App\Services\MagelangImport\MagelangImporter;
+use App\Services\UnitStatusResolver;
 use App\Support\Database\PartialUniqueGuard;
 use App\UnitStatus;
 use App\UserRole;
@@ -142,8 +144,9 @@ class MariadbMagelangMvpTest extends TestCase
         $unit = $this->makeUnit($branch);
 
         $first = $this->createCase($user, $unit);
-        $first->update(['case_status' => SalesCaseStatus::Mundur, 'closed_at' => now()]);
-        $unit->update(['status' => UnitStatus::Tersedia]);
+        app(MarkSalesCaseMundurAction::class)->handle($user, $first, 'Tidak lanjut');
+        app(UnitStatusResolver::class)->reconcile($unit);
+        $this->assertSame(UnitStatus::Tersedia, $unit->fresh()->status);
 
         $second = $this->createCase($user, $unit);
 
@@ -713,7 +716,7 @@ class MariadbMagelangMvpTest extends TestCase
 
         app(MagelangImporter::class, ['branch' => $branch])->refreshUnitStatuses();
 
-        $this->assertTrue($unit->fresh()->status === UnitStatus::Terjual);
+        $this->assertTrue($unit->fresh()->status === UnitStatus::Tersedia);
     }
 
     public function test_waiting_list_case_does_not_affect_unit_status_refresh(): void

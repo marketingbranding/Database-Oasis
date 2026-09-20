@@ -12,6 +12,7 @@ use App\Models\SalesCase;
 use App\Models\Unit;
 use App\Models\User;
 use App\SalesCaseStatus;
+use App\Services\MagelangImport\MagelangImporter;
 use App\Services\UnitStatusResolver;
 use App\UnitStatus;
 use App\UserRole;
@@ -59,6 +60,60 @@ class UnitStatusAvailabilityTest extends TestCase
 
         $this->assertSame(UnitStatus::Terjual, $this->resolver->reconcile($this->unit)->status);
         $this->assertFalse(Unit::available()->whereKey($this->unit->id)->exists());
+    }
+
+    public function test_create_action_rejects_stale_booking_until_explicit_reconcile(): void
+    {
+        $this->unit->update(['status' => UnitStatus::Booking]);
+
+        $this->expectException(ValidationException::class);
+        app(CreateSalesCaseAction::class)->handle($this->user, [
+            'unit_id' => $this->unit->id,
+            'project_id' => $this->unit->project_id,
+            'financing_type' => FinancingType::KprSubsidi,
+            'consumer_id' => Consumer::factory()->create()->id,
+        ]);
+    }
+
+    public function test_create_action_uses_available_unit_and_reconciles_booking(): void
+    {
+        $case = app(CreateSalesCaseAction::class)->handle($this->user, [
+            'unit_id' => $this->unit->id,
+            'project_id' => $this->unit->project_id,
+            'financing_type' => FinancingType::KprSubsidi,
+            'consumer_id' => Consumer::factory()->create()->id,
+        ]);
+
+        $this->assertSame($this->unit->id, $case->unit_id);
+        $this->assertSame(UnitStatus::Booking, $this->unit->fresh()->status);
+    }
+
+    public function test_create_action_rejects_stale_terjual_unit_with_akad(): void
+    {
+        $case = SalesCase::factory()->forUnit($this->unit)->create();
+        $ppjb = DeveloperPpjb::factory()->create(['sales_case_id' => $case->id]);
+        $case->akad()->create(['developer_ppjb_id' => $ppjb->id, 'akad_date' => now(), 'created_by' => $this->user->id]);
+        $this->unit->update(['status' => UnitStatus::Tersedia]);
+
+        $this->expectException(ValidationException::class);
+        app(CreateSalesCaseAction::class)->handle($this->user, [
+            'unit_id' => $this->unit->id,
+            'project_id' => $this->unit->project_id,
+            'financing_type' => FinancingType::KprSubsidi,
+            'consumer_id' => Consumer::factory()->create()->id,
+        ]);
+    }
+
+    public function test_importer_refreshes_unused_units_only_in_its_branch(): void
+    {
+        $otherBranch = Branch::factory()->create();
+        $stale = Unit::factory()->for(Project::factory()->for($this->unit->project->branch))->create(['status' => UnitStatus::Booking]);
+        $other = Unit::factory()->for(Project::factory()->for($otherBranch))->create(['status' => UnitStatus::Terjual]);
+
+        app(MagelangImporter::class, ['branch' => $this->unit->project->branch])->refreshUnitStatuses();
+
+        $this->assertSame(UnitStatus::Tersedia, $stale->fresh()->status);
+        $this->assertSame(UnitStatus::Terjual, $other->fresh()->status);
     }
 
     public function test_create_action_rejects_unavailable_unit_and_allows_waiting_list(): void
