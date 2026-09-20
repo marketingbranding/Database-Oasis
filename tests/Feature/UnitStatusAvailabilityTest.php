@@ -2,7 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Actions\CreateDeveloperPpjbAction;
+use App\Actions\CreatePsjbAction;
 use App\Actions\CreateSalesCaseAction;
+use App\Actions\MarkSalesCaseMundurAction;
+use App\Actions\RecordBiCheckAction;
+use App\BiCheckResult;
 use App\FinancingType;
 use App\Models\Branch;
 use App\Models\Consumer;
@@ -60,6 +65,54 @@ class UnitStatusAvailabilityTest extends TestCase
 
         $this->assertSame(UnitStatus::Terjual, $this->resolver->reconcile($this->unit)->status);
         $this->assertFalse(Unit::available()->whereKey($this->unit->id)->exists());
+    }
+
+    public function test_waiting_list_can_complete_bi_and_psjb_before_assignment(): void
+    {
+        $case = SalesCase::factory()->create([
+            'unit_id' => null,
+            'project_id' => $this->unit->project_id,
+            'branch_id' => $this->unit->project->branch_id,
+            'financing_type' => FinancingType::KprSubsidi,
+        ]);
+
+        app(RecordBiCheckAction::class)->handle($this->user, [
+            'sales_case_id' => $case->id,
+            'check_date' => now()->toDateString(),
+            'result' => BiCheckResult::Clear,
+        ]);
+        $psjb = app(CreatePsjbAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'psjb_date' => now()->toDateString()]);
+
+        $this->assertNull($case->refresh()->unit_id);
+        $this->assertNotNull($psjb);
+    }
+
+    public function test_waiting_list_cannot_create_developer_ppjb_until_assigned(): void
+    {
+        $case = SalesCase::factory()->create([
+            'unit_id' => null,
+            'project_id' => $this->unit->project_id,
+            'branch_id' => $this->unit->project->branch_id,
+            'financing_type' => FinancingType::KprSubsidi,
+        ]);
+
+        $this->expectException(ValidationException::class);
+        app(CreateDeveloperPpjbAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'document_date' => now()->toDateString()]);
+    }
+
+    public function test_waiting_list_can_mundur_without_unit(): void
+    {
+        $case = SalesCase::factory()->create([
+            'unit_id' => null,
+            'project_id' => $this->unit->project_id,
+            'branch_id' => $this->unit->project->branch_id,
+            'financing_type' => FinancingType::KprSubsidi,
+        ]);
+
+        $closed = app(MarkSalesCaseMundurAction::class)->handle($this->user, $case, 'Tidak lanjut');
+
+        $this->assertSame(SalesCaseStatus::Mundur, $closed->case_status);
+        $this->assertNull($closed->unit_id);
     }
 
     public function test_create_action_rejects_stale_booking_until_explicit_reconcile(): void

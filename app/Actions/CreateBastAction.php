@@ -26,13 +26,13 @@ class CreateBastAction
         return DB::transaction(function () use ($user, $data): BastRecord {
             /** @var SalesCase $case */
             $case = SalesCase::whereKey($data['sales_case_id'] ?? null)->lockForUpdate()->firstOrFail();
-            $case->ensureAssignedUnit();
             if ($user->isBranchScoped() && ! $user->belongsToBranch($case->branch_id)) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case berada di luar cabang Anda.']);
             }
             if ($case->case_status !== SalesCaseStatus::Active || $case->bast()->exists()) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case tidak aktif atau sudah memiliki BAST.']);
             }
+            $case->ensureAssignedUnit();
             /** @var AkadRecord|null $akad */
             $akad = AkadRecord::query()->whereKey($data['akad_id'] ?? null)->lockForUpdate()->first();
             if ($akad === null || $akad->sales_case_id !== $case->id) {

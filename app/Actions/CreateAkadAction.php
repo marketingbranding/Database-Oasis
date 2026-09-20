@@ -25,13 +25,13 @@ class CreateAkadAction
         return DB::transaction(function () use ($user, $data): AkadRecord {
             /** @var SalesCase $case */
             $case = SalesCase::whereKey($data['sales_case_id'] ?? null)->lockForUpdate()->firstOrFail();
-            $case->ensureAssignedUnit();
             if ($user->isBranchScoped() && ! $user->belongsToBranch($case->branch_id)) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case berada di luar cabang Anda.']);
             }
             if ($case->case_status !== SalesCaseStatus::Active || $case->akad()->exists()) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case tidak aktif atau sudah memiliki Akad.']);
             }
+            $case->ensureAssignedUnit();
             /** @var DeveloperPpjb|null $ppjb */
             $ppjb = DeveloperPpjb::query()->whereKey($data['developer_ppjb_id'] ?? null)->lockForUpdate()->first();
             if ($ppjb === null || $ppjb->sales_case_id !== $case->id || $ppjb->status !== DeveloperPpjbStatus::Active) {
