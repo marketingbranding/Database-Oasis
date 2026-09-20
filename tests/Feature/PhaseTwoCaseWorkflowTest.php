@@ -7,11 +7,15 @@ use App\Actions\CreateSalesCaseAction;
 use App\Actions\MarkSalesCaseMundurAction;
 use App\Actions\MarkSalesCaseRejectedAction;
 use App\Actions\MoveSalesCaseUnitAction;
+use App\BankResponseType;
 use App\Filament\Resources\SalesCases\Pages\ViewSalesCase;
 use App\FinancingType;
+use App\Models\Bank;
+use App\Models\BankProcess;
 use App\Models\Branch;
 use App\Models\Consumer;
 use App\Models\DeveloperPpjb;
+use App\Models\DocumentSubmission;
 use App\Models\Project;
 use App\Models\Psjb;
 use App\Models\SalesCase;
@@ -204,6 +208,74 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         $this->assertSame($stage, $case->refresh()->current_stage);
     }
 
+    public function test_document_submission_blocks_true_move_without_mutation(): void
+    {
+        $user = $this->hqAdmin();
+        $branch = Branch::factory()->create();
+        $case = $this->activeCase($user, $branch);
+        $oldUnit = $case->unit;
+        $newUnit = $this->makeUnit($branch);
+        $submission = DocumentSubmission::factory()->create(['sales_case_id' => $case->id]);
+        $projectId = $case->project_id;
+
+        $this->assertMoveBlocked($user, $case, $newUnit, 'Pemberkasan');
+
+        $this->assertSame($oldUnit->id, $case->refresh()->unit_id);
+        $this->assertSame($projectId, $case->project_id);
+        $this->assertSame(UnitStatus::Booking, $oldUnit->fresh()->status);
+        $this->assertSame(UnitStatus::Tersedia, $newUnit->fresh()->status);
+        $this->assertSame($case->id, $submission->refresh()->sales_case_id);
+        $this->assertSame(0, $case->caseNotes()->count());
+    }
+
+    public function test_authoritative_sp3k_blocks_true_move_before_submission_guard(): void
+    {
+        $user = $this->hqAdmin();
+        $branch = Branch::factory()->create();
+        $case = $this->activeCase($user, $branch);
+        $oldUnit = $case->unit;
+        $newUnit = $this->makeUnit($branch);
+        $bank = Bank::factory()->create();
+        $submission = DocumentSubmission::factory()->create(['sales_case_id' => $case->id, 'bank_id' => $bank->id]);
+        $process = BankProcess::factory()->create([
+            'sales_case_id' => $case->id,
+            'document_submission_id' => $submission->id,
+            'bank_id' => $bank->id,
+            'response_type' => BankResponseType::Approved,
+            'sp3k_number' => 'SP3K-MOVE',
+            'sp3k_date' => '2026-09-10',
+            'is_authoritative' => true,
+        ]);
+
+        $this->assertMoveBlocked($user, $case, $newUnit, 'SP3K');
+
+        $this->assertSame($oldUnit->id, $case->refresh()->unit_id);
+        $this->assertSame(UnitStatus::Booking, $oldUnit->fresh()->status);
+        $this->assertSame(UnitStatus::Tersedia, $newUnit->fresh()->status);
+        $this->assertSame('SP3K-MOVE', $process->refresh()->sp3k_number);
+        $this->assertSame(0, $case->caseNotes()->count());
+    }
+
+    public function test_developer_ppjb_blocks_true_move_without_mutation(): void
+    {
+        $user = $this->hqAdmin();
+        $branch = Branch::factory()->create();
+        $case = $this->activeCase($user, $branch);
+        $oldUnit = $case->unit;
+        $newUnit = $this->makeUnit($branch);
+        $ppjb = DeveloperPpjb::factory()->create(['sales_case_id' => $case->id]);
+        $projectId = $case->project_id;
+
+        $this->assertMoveBlocked($user, $case, $newUnit, 'PPJB Developer');
+
+        $this->assertSame($oldUnit->id, $case->refresh()->unit_id);
+        $this->assertSame($projectId, $case->project_id);
+        $this->assertSame(UnitStatus::Booking, $oldUnit->fresh()->status);
+        $this->assertSame(UnitStatus::Tersedia, $newUnit->fresh()->status);
+        $this->assertSame($case->id, $ppjb->refresh()->sales_case_id);
+        $this->assertSame(0, $case->caseNotes()->count());
+    }
+
     public function test_active_psjb_blocks_move_until_cancelled(): void
     {
         $user = $this->hqAdmin();
@@ -377,6 +449,16 @@ class PhaseTwoCaseWorkflowTest extends TestCase
 
         Livewire::test(ViewSalesCase::class, ['record' => $moved->id])
             ->assertSuccessful();
+    }
+
+    private function assertMoveBlocked(User $user, SalesCase $case, Unit $newUnit, string $message): void
+    {
+        try {
+            app(MoveSalesCaseUnitAction::class)->handle($user, $case, $newUnit->id, 'Pindah');
+            $this->fail('Unsafe move unexpectedly succeeded.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString($message, $exception->getMessage());
+        }
     }
 
     private function createCaseForUnit(User $user, Unit $unit): SalesCase
