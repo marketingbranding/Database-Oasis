@@ -10,6 +10,7 @@ use App\Actions\CreateSalesCaseAction;
 use App\Actions\MarkSalesCaseMundurAction;
 use App\Actions\MarkSalesCaseRejectedAction;
 use App\Actions\RecordBiCheckAction;
+use App\Actions\ReissueDeveloperPpjbAction;
 use App\BiCheckResult;
 use App\FinancingType;
 use App\Models\Branch;
@@ -141,6 +142,7 @@ class UnitStatusAvailabilityTest extends TestCase
 
         foreach ([
             fn () => app(CreateDeveloperPpjbAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'document_date' => now()->toDateString()]),
+            fn () => app(ReissueDeveloperPpjbAction::class)->handle($this->user, $case, ['document_date' => now()->toDateString()]),
             fn () => app(CreateAkadAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'developer_ppjb_id' => $ppjb->id, 'akad_date' => now()->toDateString()]),
             fn () => app(CreateBastAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'akad_id' => 'missing', 'bast_date' => now()->toDateString()]),
         ] as $attempt) {
