@@ -192,7 +192,7 @@ class ReconcileCanonicalStateTest extends TestCase
         Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branchA->id, '--json' => true]);
         $payload = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
 
-        foreach (['project_unit_mismatch', 'branch_project_mismatch', 'unit_branch_mismatch', 'bast_status_mismatch', 'akad_without_ppjb', 'authoritative_sp3k_incomplete'] as $type) {
+        foreach (['project_unit_mismatch', 'branch_project_mismatch', 'unit_branch_mismatch', 'bast_status_mismatch', 'akad_without_ppjb', 'authoritative_sp3k_incomplete', 'bank_process_without_submission'] as $type) {
             $this->assertArrayHasKey($type, $payload['anomalies']['counts']);
         }
         $this->assertGreaterThanOrEqual(5, $payload['anomalies']['total']);

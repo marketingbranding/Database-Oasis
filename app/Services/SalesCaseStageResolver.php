@@ -48,6 +48,10 @@ final class SalesCaseStageResolver
             return SalesCaseStage::PpjbDev;
         }
 
+        if ($case->bankProcesses()->exists()) {
+            return SalesCaseStage::ProsesBank;
+        }
+
         if ($case->documentSubmissions()
             ->where('status', '!=', DocumentSubmissionStatus::Cancelled->value)
             ->exists()) {

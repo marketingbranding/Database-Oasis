@@ -153,6 +153,9 @@ class ReconcileCanonicalState extends Command
         if ($case->unit_id !== null && SalesCase::query()->where('unit_id', $case->unit_id)->where('case_status', 'ACTIVE')->count() > 1) {
             $add('multiple_active_unit_owners', 'More than one ACTIVE SalesCase points to Unit.');
         }
+        if ($case->bankProcesses()->exists() && ! $case->documentSubmissions()->exists()) {
+            $add('bank_process_without_submission', 'BankProcess evidence exists without DocumentSubmission.');
+        }
         if ($case->bankProcesses()->where('is_authoritative', true)->where(function (Builder $query): void {
             $query->whereNull('sp3k_number')->orWhereNull('sp3k_date');
         })->exists()) {

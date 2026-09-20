@@ -94,6 +94,24 @@ class SalesCaseStageResolverTest extends TestCase
         $this->assertNotNull($submission);
     }
 
+    public function test_kpr_bank_process_without_submission_resolves_proses_bank(): void
+    {
+        $case = $this->case(FinancingType::KprSubsidi);
+        Psjb::factory()->create(['sales_case_id' => $case->id]);
+        BankProcess::factory()->create(['sales_case_id' => $case->id, 'document_submission_id' => null]);
+
+        $this->assertSame(SalesCaseStage::ProsesBank, $this->resolver->resolve($case));
+    }
+
+    public function test_incomplete_authoritative_sp3k_without_submission_stays_proses_bank(): void
+    {
+        $case = $this->case(FinancingType::KprSubsidi);
+        Psjb::factory()->create(['sales_case_id' => $case->id]);
+        BankProcess::factory()->create(['sales_case_id' => $case->id, 'document_submission_id' => null, 'is_authoritative' => true, 'sp3k_number' => 'SP3K-LEGACY', 'sp3k_date' => null]);
+
+        $this->assertSame(SalesCaseStage::ProsesBank, $this->resolver->resolve($case));
+    }
+
     public function test_kpr_late_evidence_resolves_to_final_operational_steps(): void
     {
         $case = $this->case(FinancingType::KprSubsidi);
