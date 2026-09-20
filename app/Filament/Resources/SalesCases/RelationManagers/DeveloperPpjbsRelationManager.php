@@ -26,7 +26,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('document_number')->label('Nomor PPJB')->placeholder('-'), TextColumn::make('document_date')->date(),
+            TextColumn::make('document_number')->label('Nomor PPJB')->placeholder('-'), TextColumn::make('document_date')->label('Tanggal PPJB')->date(),
             TextColumn::make('status')->badge(), TextColumn::make('bankProcess.sp3k_number')->label('SP3K')->placeholder('-'),
         ])->headerActions([$this->createAction()])->recordActions([$this->reissueAction(), $this->cancelAction()])->defaultSort('document_date', 'desc');
     }
@@ -34,7 +34,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
     /** @return array<int, mixed> */
     private function fields(): array
     {
-        return [TextInput::make('document_number')->label('Nomor PPJB'), DatePicker::make('document_date')->default(now())->required(), Textarea::make('notes')];
+        return [TextInput::make('document_number')->label('Nomor PPJB'), DatePicker::make('document_date')->label('Tanggal PPJB')->default(now())->required(), Textarea::make('notes')->label('Catatan')];
     }
 
     private function createAction(): Action
@@ -48,7 +48,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
 
     private function reissueAction(): Action
     {
-        return Action::make('reissuePpjbDeveloper')->label('Reissue')->form($this->fields())->visible(fn (DeveloperPpjb $record): bool => $record->status === DeveloperPpjbStatus::Active && ! $record->salesCase->akad()->exists())
+        return Action::make('reissuePpjbDeveloper')->label('Terbitkan Ulang')->form($this->fields())->visible(fn (DeveloperPpjb $record): bool => $record->status === DeveloperPpjbStatus::Active && ! $record->salesCase->akad()->exists())
             ->action(function (array $data, RelationManager $livewire): void {
                 $case = $livewire->getOwnerRecord();
                 if (! $case instanceof SalesCase) {
@@ -60,7 +60,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
 
     private function cancelAction(): Action
     {
-        return Action::make('cancelPpjbDeveloper')->label('Cancel')->color('danger')->requiresConfirmation()->visible(fn (DeveloperPpjb $record): bool => $record->status === DeveloperPpjbStatus::Active && $record->salesCase->case_status === SalesCaseStatus::Active && ! $record->salesCase->akad()->exists())
+        return Action::make('cancelPpjbDeveloper')->label('Batalkan')->color('danger')->requiresConfirmation()->visible(fn (DeveloperPpjb $record): bool => $record->status === DeveloperPpjbStatus::Active && $record->salesCase->case_status === SalesCaseStatus::Active && ! $record->salesCase->akad()->exists())
             ->action(fn (DeveloperPpjb $record) => app(CancelDeveloperPpjbAction::class)->handle(User::current() ?? abort(403), $record));
     }
 }

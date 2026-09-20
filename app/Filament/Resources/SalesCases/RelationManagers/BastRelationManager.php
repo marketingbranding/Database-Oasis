@@ -22,10 +22,10 @@ class BastRelationManager extends RelationManager
     {
         return $table->columns([
             TextColumn::make('akad.document_number')->label('Akad'), TextColumn::make('bast_number')->label('Nomor BAST')->placeholder('-'),
-            TextColumn::make('bast_date')->date(), TextColumn::make('status')->badge(),
+            TextColumn::make('bast_date')->label('Tanggal BAST')->date(), TextColumn::make('status')->badge(),
         ])->headerActions([
             Action::make('createBast')->label('Buat BAST')->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord() instanceof SalesCase && $livewire->getOwnerRecord()->akad()->exists() && ! $livewire->getOwnerRecord()->bast()->exists() && (User::current()?->can('create', BastRecord::class) ?? false))
-                ->form([TextInput::make('bast_number')->label('Nomor BAST'), DatePicker::make('bast_date')->default(now())->required(), Textarea::make('notes')])
+                ->form([TextInput::make('bast_number')->label('Nomor BAST'), DatePicker::make('bast_date')->label('Tanggal BAST')->default(now())->required(), Textarea::make('notes')->label('Catatan')])
                 ->action(function (array $data, RelationManager $livewire): void {
                     $case = $livewire->getOwnerRecord();
                     if (! $case instanceof SalesCase) {

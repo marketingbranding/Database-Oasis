@@ -218,7 +218,7 @@ class WorkspaceActions
                     ->required(fn ($state, $get): bool => $get('response_type') === BankResponseType::Approved->value),
                 TextInput::make('credit_limit')->label('Plafon Kredit')->numeric(),
                 TextInput::make('tenor')->label('Tenor')->numeric(),
-                Textarea::make('notes'),
+                Textarea::make('notes')->label('Catatan'),
             ])
             ->action(function (array $data, SalesCase $case): void {
                 $submission = DocumentSubmission::findOrFail($data['document_submission_id']);
@@ -314,7 +314,7 @@ class WorkspaceActions
                 TextInput::make('document_number')->label('Nomor Akad'),
                 DatePicker::make('akad_date')->label('Tanggal Akad')->default(now())->required(),
                 TextInput::make('akad_quality')->label('Kualitas Akad'),
-                Textarea::make('notes'),
+                Textarea::make('notes')->label('Catatan'),
             ])
             ->action(function (array $data, SalesCase $case): void {
                 $data['developer_ppjb_id'] = $case->activeDeveloperPpjb()->firstOrFail()->id;
@@ -335,7 +335,7 @@ class WorkspaceActions
             ->form([
                 TextInput::make('bast_number')->label('Nomor BAST'),
                 DatePicker::make('bast_date')->label('Tanggal BAST')->default(now())->required(),
-                Textarea::make('notes'),
+                Textarea::make('notes')->label('Catatan'),
             ])
             ->action(function (array $data, SalesCase $case): void {
                 $data['akad_id'] = $case->akad()->firstOrFail()->id;
@@ -411,7 +411,7 @@ class WorkspaceActions
             Select::make('coordinator_id')->label('Koordinator')
                 ->options(fn (): array => User::query()->where('is_active', true)->orderBy('name')->limit(50)->pluck('name', 'id')->all())
                 ->searchable(),
-            Textarea::make('notes'),
+            Textarea::make('notes')->label('Catatan'),
         ];
     }
 
@@ -421,7 +421,7 @@ class WorkspaceActions
         return [
             TextInput::make('document_number')->label('Nomor PPJB'),
             DatePicker::make('document_date')->label('Tanggal PPJB')->default(now())->required(),
-            Textarea::make('notes'),
+            Textarea::make('notes')->label('Catatan'),
         ];
     }
 }

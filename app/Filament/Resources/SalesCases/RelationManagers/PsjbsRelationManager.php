@@ -166,7 +166,7 @@ class PsjbsRelationManager extends RelationManager
                 ->label('Koordinator')
                 ->options(fn (): array => User::query()->where('is_active', true)->orderBy('name')->limit(50)->pluck('name', 'id')->all())
                 ->searchable(),
-            Textarea::make('notes')
+            Textarea::make('notes')->label('Catatan')
                 ->label('Catatan')
                 ->maxLength(1000),
         ];

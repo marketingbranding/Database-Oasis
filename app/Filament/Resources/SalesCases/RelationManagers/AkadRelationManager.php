@@ -22,10 +22,10 @@ class AkadRelationManager extends RelationManager
     {
         return $table->columns([
             TextColumn::make('developerPpjb.document_number')->label('PPJB'), TextColumn::make('document_number')->label('Nomor Akad')->placeholder('-'),
-            TextColumn::make('akad_date')->date(), TextColumn::make('akad_quality')->label('Kualitas')->placeholder('-'),
+            TextColumn::make('akad_date')->label('Tanggal Akad')->date(), TextColumn::make('akad_quality')->label('Kualitas Akad')->placeholder('-'),
         ])->headerActions([
             Action::make('createAkad')->label('Buat Akad')->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord() instanceof SalesCase && ! $livewire->getOwnerRecord()->akad()->exists() && (User::current()?->can('create', AkadRecord::class) ?? false))
-                ->form([TextInput::make('document_number')->label('Nomor Akad'), DatePicker::make('akad_date')->default(now())->required(), TextInput::make('akad_quality'), Textarea::make('notes')])
+                ->form([TextInput::make('document_number')->label('Nomor Akad'), DatePicker::make('akad_date')->label('Tanggal Akad')->default(now())->required(), TextInput::make('akad_quality')->label('Kualitas Akad'), Textarea::make('notes')->label('Catatan')])
                 ->action(function (array $data, RelationManager $livewire): void {
                     $case = $livewire->getOwnerRecord();
                     if (! $case instanceof SalesCase) {
