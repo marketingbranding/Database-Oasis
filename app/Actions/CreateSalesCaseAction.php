@@ -26,6 +26,10 @@ class CreateSalesCaseAction
         Gate::forUser($user)->authorize('create', SalesCase::class);
 
         return DB::transaction(function () use ($user, $data): SalesCase {
+            $financingType = $data['financing_type'] instanceof FinancingType
+                ? $data['financing_type']
+                : FinancingType::from($data['financing_type']);
+
             /** @var Unit|null $unit */
             $unit = filled($data['unit_id'] ?? null)
                 ? Unit::whereKey($data['unit_id'])->lockForUpdate()->firstOrFail()
@@ -51,12 +55,12 @@ class CreateSalesCaseAction
                     'unit_id' => $unit?->id,
                     'project_id' => $project->id,
                     'branch_id' => $branchId,
-                    'financing_type' => $data['financing_type'] ?? null,
+                    'financing_type' => $financingType,
                     'booking_date' => $data['booking_date'] ?? null,
                     'source' => $data['source'] ?? null,
                     'sales_pic_id' => $data['sales_pic_id'] ?? null,
                     'coordinator_id' => $data['coordinator_id'] ?? null,
-                    'current_stage' => $data['financing_type'] === FinancingType::Cash ? SalesCaseStage::Psjb : SalesCaseStage::BiChecking,
+                    'current_stage' => $financingType === FinancingType::Cash ? SalesCaseStage::Psjb : SalesCaseStage::BiChecking,
                     'case_status' => SalesCaseStatus::Active,
                     'created_by' => $user->id,
                 ]);

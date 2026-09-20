@@ -15,7 +15,7 @@ final class SalesCaseStageResolver
 {
     public function resolve(SalesCase $case): SalesCaseStage
     {
-        if ($case->bast()->exists() || $case->case_status->value === 'COMPLETED') {
+        if ($case->bast()->exists()) {
             return SalesCaseStage::Completed;
         }
 
@@ -48,7 +48,9 @@ final class SalesCaseStageResolver
             return SalesCaseStage::PpjbDev;
         }
 
-        if ($case->documentSubmissions()->exists()) {
+        if ($case->documentSubmissions()
+            ->where('status', '!=', DocumentSubmissionStatus::Cancelled->value)
+            ->exists()) {
             return SalesCaseStage::ProsesBank;
         }
 
@@ -56,7 +58,7 @@ final class SalesCaseStageResolver
             return SalesCaseStage::Pemberkasan;
         }
 
-        return $case->latestBiCheck?->result === BiCheckResult::Clear
+        return $case->latestBiCheck()->first()?->result === BiCheckResult::Clear
             ? SalesCaseStage::Psjb
             : SalesCaseStage::BiChecking;
     }
