@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\DocumentSubmissions\Tables;
 
 use App\DocumentSubmissionStatus;
+use App\Models\DocumentSubmission;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -20,7 +21,7 @@ class DocumentSubmissionsTable
             TextColumn::make('sequence')->label('Submission #')->sortable(),
             TextColumn::make('submission_date')->label('Tanggal')->date()->sortable(),
             TextColumn::make('latestBankProcess.response_type')->label('Response Terakhir')->badge()->placeholder('-'),
-            TextColumn::make('latestBankProcess.sp3k_code')->label('Kode SP3K')->searchable()->placeholder('-'),
+            TextColumn::make('sp3k_identifier')->label('SP3K')->state(fn (DocumentSubmission $record): string => $record->latestBankProcess?->displaySp3kIdentifier() ?? '-'),
             TextColumn::make('status')->badge()->formatStateUsing(fn (DocumentSubmissionStatus $state): string => $state->getLabel()),
             TextColumn::make('updated_at')->label('Diubah')->dateTime()->sortable(),
         ])->filters([

@@ -188,11 +188,14 @@ class ReconcileCanonicalStateTest extends TestCase
 
         $bankCase = SalesCase::factory()->create(['branch_id' => $branchA->id, 'financing_type' => FinancingType::KprSubsidi]);
         BankProcess::factory()->create(['sales_case_id' => $bankCase->id, 'document_submission_id' => null, 'is_authoritative' => true, 'sp3k_number' => null, 'sp3k_date' => null]);
+        $systemCodeCase = SalesCase::factory()->create(['branch_id' => $branchA->id, 'financing_type' => FinancingType::KprSubsidi]);
+        BankProcess::factory()->create(['sales_case_id' => $systemCodeCase->id, 'is_authoritative' => true, 'sp3k_date' => '2026-09-20']);
+        $systemCodeCase->developerPpjbs()->create(['status' => DeveloperPpjbStatus::Active, 'document_date' => now()]);
 
         Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branchA->id, '--json' => true]);
         $payload = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
 
-        foreach (['project_unit_mismatch', 'branch_project_mismatch', 'unit_branch_mismatch', 'bast_status_mismatch', 'akad_without_ppjb', 'authoritative_sp3k_incomplete', 'bank_process_without_submission'] as $type) {
+        foreach (['project_unit_mismatch', 'branch_project_mismatch', 'unit_branch_mismatch', 'bast_status_mismatch', 'akad_without_ppjb', 'authoritative_sp3k_incomplete', 'sp3k_system_code_missing', 'ppjb_system_code_missing', 'bank_process_without_submission'] as $type) {
             $this->assertArrayHasKey($type, $payload['anomalies']['counts']);
         }
         $this->assertGreaterThanOrEqual(5, $payload['anomalies']['total']);

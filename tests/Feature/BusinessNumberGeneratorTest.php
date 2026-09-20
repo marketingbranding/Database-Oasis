@@ -20,6 +20,7 @@ use App\Services\BusinessNumberGenerator;
 use App\Services\SalesCaseStageResolver;
 use App\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -74,6 +75,25 @@ class BusinessNumberGeneratorTest extends TestCase
         } catch (ValidationException) {
             $this->assertSame(1, BusinessNumberSequence::query()->where('type', 'SP3K')->value('last_number'));
         }
+    }
+
+    public function test_failed_outer_transaction_rolls_back_code_and_sequence(): void
+    {
+        $branch = Branch::factory()->create(['code' => 'MGL']);
+        $case = SalesCase::factory()->forUnit(Unit::factory()->for(Project::factory()->for($branch))->create())->create();
+        $process = BankProcess::factory()->create(['sales_case_id' => $case->id, 'is_authoritative' => true, 'sp3k_date' => '2026-09-20']);
+
+        try {
+            DB::transaction(function () use ($process): void {
+                app(BusinessNumberGenerator::class)->ensureSp3kCode($process);
+                throw new \RuntimeException('rollback');
+            });
+        } catch (\RuntimeException) {
+            $this->assertNull($process->refresh()->sp3k_code);
+            $this->assertSame(0, BusinessNumberSequence::query()->count());
+        }
+
+        $this->assertSame('SP3K-MGL-2026-000001', app(BusinessNumberGenerator::class)->ensureSp3kCode($process));
     }
 
     public function test_ensure_ppjb_code_is_idempotent_and_reissue_gets_new_code(): void

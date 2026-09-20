@@ -4,6 +4,7 @@ namespace App\Filament\Resources\SalesCases\Tables;
 
 use App\Filament\Resources\SalesCases\Actions\CaseWorkflowActions;
 use App\FinancingType;
+use App\Models\SalesCase;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use Filament\Actions\EditAction;
@@ -61,9 +62,9 @@ class SalesCasesTable
                     ->label('Bank')
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('currentApprovedBankProcess.sp3k_code')
-                    ->label('Kode SP3K')
-                    ->placeholder('-')
+                TextColumn::make('sp3k_identifier')
+                    ->label('SP3K')
+                    ->state(fn (SalesCase $record): string => $record->currentApprovedBankProcess?->displaySp3kIdentifier() ?? '-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('daysInCurrentStage')
                     ->label('Hari di Tahap')

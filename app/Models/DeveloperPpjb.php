@@ -21,6 +21,11 @@ class DeveloperPpjb extends Model
         return ['document_date' => 'date', 'status' => DeveloperPpjbStatus::class];
     }
 
+    public function displayPpjbIdentifier(): string
+    {
+        return $this->ppjb_code ?? ($this->document_number !== null ? 'Legacy: '.$this->document_number : '-');
+    }
+
     /** @return BelongsTo<SalesCase, $this> */
     public function salesCase(): BelongsTo
     {

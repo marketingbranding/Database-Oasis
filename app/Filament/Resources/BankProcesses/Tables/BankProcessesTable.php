@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\BankProcesses\Tables;
 
 use App\BankResponseType;
+use App\Models\BankProcess;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -21,7 +22,7 @@ class BankProcessesTable
             TextColumn::make('documentSubmission.sequence')->label('Submission #'),
             TextColumn::make('response_type')->label('Response')->badge()->formatStateUsing(fn (BankResponseType $state): string => $state->getLabel()),
             TextColumn::make('response_date')->label('Tanggal')->date()->sortable(),
-            TextColumn::make('sp3k_code')->label('Kode SP3K')->searchable()->placeholder('-'),
+            TextColumn::make('sp3k_identifier')->label('SP3K')->state(fn (BankProcess $record): string => $record->displaySp3kIdentifier()),
             IconColumn::make('is_authoritative')->label('Authoritative')->boolean(),
             TextColumn::make('updated_at')->label('Diubah')->dateTime()->sortable(),
         ])->filters([

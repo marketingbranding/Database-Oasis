@@ -28,6 +28,11 @@ class BankProcess extends Model
         ];
     }
 
+    public function displaySp3kIdentifier(): string
+    {
+        return $this->sp3k_code ?? ($this->sp3k_number !== null ? 'Legacy: '.$this->sp3k_number : '-');
+    }
+
     public static function latestForSubmission(string $submissionId): ?self
     {
         return self::query()
