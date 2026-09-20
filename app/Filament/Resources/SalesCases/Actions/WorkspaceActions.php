@@ -51,7 +51,7 @@ class WorkspaceActions
         }
 
         return match ($record->current_stage) {
-            SalesCaseStage::DataKonsumen, SalesCaseStage::BiChecking => self::addBiCheck(),
+            SalesCaseStage::DataKonsumen, SalesCaseStage::BiChecking => $record->financing_type === FinancingType::Cash ? self::createPsjb() : self::addBiCheck(),
             SalesCaseStage::Psjb => self::createPsjb(),
             SalesCaseStage::Pemberkasan => $record->financing_type === FinancingType::Cash
                 ? self::completeCashPemberkasan()
@@ -130,7 +130,7 @@ class WorkspaceActions
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
                 && $case->activePsjb()->doesntExist()
                 && $case->akad()->doesntExist()
-                && ($case->latestBiCheck()->first()?->result === BiCheckResult::Clear))
+                && ($case->financing_type === FinancingType::Cash || $case->latestBiCheck()->first()?->result === BiCheckResult::Clear))
             ->form(self::psjbFields())
             ->action(function (array $data, SalesCase $case): void {
                 app(CreatePsjbAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);

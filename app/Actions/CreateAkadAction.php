@@ -8,8 +8,8 @@ use App\Models\DeveloperPpjb;
 use App\Models\SalesCase;
 use App\Models\Unit;
 use App\Models\User;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use App\UnitStatus;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +47,7 @@ class CreateAkadAction
             } catch (UniqueConstraintViolationException) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case atau PPJB sudah memiliki Akad.']);
             }
-            $case->advanceStageTo(SalesCaseStage::Bast);
+            app(SalesCaseStageResolver::class)->reconcile($case);
             Unit::whereKey($case->unit_id)->update(['status' => UnitStatus::Terjual->value]);
 
             return $akad;

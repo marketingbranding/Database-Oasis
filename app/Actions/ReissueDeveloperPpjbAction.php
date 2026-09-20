@@ -6,8 +6,8 @@ use App\DeveloperPpjbStatus;
 use App\Models\DeveloperPpjb;
 use App\Models\SalesCase;
 use App\Models\User;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -37,7 +37,7 @@ class ReissueDeveloperPpjbAction
                 'document_number' => $data['document_number'] ?? null, 'document_date' => $data['document_date'],
                 'status' => DeveloperPpjbStatus::Active, 'notes' => $data['notes'] ?? null, 'created_by' => $user->id,
             ]);
-            $case->advanceStageTo(SalesCaseStage::Akad);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $new;
         });

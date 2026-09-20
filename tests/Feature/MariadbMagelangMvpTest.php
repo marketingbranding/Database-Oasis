@@ -360,7 +360,7 @@ class MariadbMagelangMvpTest extends TestCase
         // The real Akad is kept; no PSJB row is invented to fill the gap.
         $this->assertSame(0, $case->psjbs()->count());
         $this->assertSame('2024-06-10', $case->akad->akad_date->toDateString());
-        $this->assertTrue($case->current_stage === SalesCaseStage::Akad);
+        $this->assertTrue($case->current_stage === SalesCaseStage::Bast);
 
         // SP3K stays modeled as the authoritative bank process, not a stage.
         $this->assertTrue($case->currentApprovedBankProcess instanceof BankProcess);
@@ -428,7 +428,7 @@ class MariadbMagelangMvpTest extends TestCase
         $kpr = SalesCase::query()->whereHas('consumer', fn ($query) => $query->where('name', 'KPR Lengkap'))->firstOrFail();
 
         $this->assertTrue($kpr->case_status === SalesCaseStatus::Completed);
-        $this->assertTrue($kpr->current_stage === SalesCaseStage::Bast);
+        $this->assertTrue($kpr->current_stage === SalesCaseStage::Completed);
         $this->assertNotNull($kpr->akad);
         $this->assertNotNull($kpr->bast);
         $this->assertFalse($kpr->needs_review);
@@ -437,7 +437,7 @@ class MariadbMagelangMvpTest extends TestCase
 
         $this->assertTrue($cash->financing_type === FinancingType::Cash);
         $this->assertSame(0, $cash->bankProcesses()->count());
-        $this->assertTrue($cash->current_stage === SalesCaseStage::Pemberkasan);
+        $this->assertTrue($cash->current_stage === SalesCaseStage::PpjbDev);
     }
 
     public function test_magelang_import_full_rerun_skips_case_and_process_rows(): void

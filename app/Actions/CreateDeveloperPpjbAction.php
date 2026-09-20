@@ -12,6 +12,7 @@ use App\Models\SalesCase;
 use App\Models\User;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -63,7 +64,7 @@ class CreateDeveloperPpjbAction
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case sudah memiliki PPJB Developer aktif.']);
             }
 
-            $case->advanceStageTo(SalesCaseStage::Akad);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $ppjb;
         });

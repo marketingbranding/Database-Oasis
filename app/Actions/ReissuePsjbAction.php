@@ -6,8 +6,8 @@ use App\Models\Psjb;
 use App\Models\SalesCase;
 use App\Models\User;
 use App\PsjbStatus;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -67,7 +67,7 @@ class ReissuePsjbAction
             }
 
             // Forward only: a case already past PEMBERKASAN keeps its position.
-            $case->advanceStageTo(SalesCaseStage::Pemberkasan);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $newPsjb;
         });

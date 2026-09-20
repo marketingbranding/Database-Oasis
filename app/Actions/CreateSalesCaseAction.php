@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\FinancingType;
 use App\Models\Consumer;
 use App\Models\Project;
 use App\Models\SalesCase;
@@ -55,7 +56,7 @@ class CreateSalesCaseAction
                     'source' => $data['source'] ?? null,
                     'sales_pic_id' => $data['sales_pic_id'] ?? null,
                     'coordinator_id' => $data['coordinator_id'] ?? null,
-                    'current_stage' => SalesCaseStage::DataKonsumen,
+                    'current_stage' => $data['financing_type'] === FinancingType::Cash ? SalesCaseStage::Psjb : SalesCaseStage::BiChecking,
                     'case_status' => SalesCaseStatus::Active,
                     'created_by' => $user->id,
                 ]);

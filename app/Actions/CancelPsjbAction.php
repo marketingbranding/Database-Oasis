@@ -7,6 +7,7 @@ use App\Models\SalesCase;
 use App\Models\User;
 use App\PsjbStatus;
 use App\SalesCaseStage;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -40,7 +41,7 @@ class CancelPsjbAction
 
             // No downstream progression exists yet, so the case moves back to
             // waiting for a PSJB. The Sales Case itself stays ACTIVE.
-            $case->update(['current_stage' => SalesCaseStage::Psjb]);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $psjb->refresh();
         });

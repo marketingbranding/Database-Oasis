@@ -8,8 +8,8 @@ use App\FinancingType;
 use App\Models\DocumentSubmission;
 use App\Models\SalesCase;
 use App\Models\User;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -69,7 +69,7 @@ class CompleteCashPemberkasanAction
                 throw ValidationException::withMessages(['sales_case_id' => 'Nomor urut pemberkasan bentrok. Silakan ulangi.']);
             }
 
-            $case->advanceStageTo(SalesCaseStage::PpjbDev);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $submission;
         });

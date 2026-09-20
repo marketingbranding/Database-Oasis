@@ -441,9 +441,9 @@ class PhaseSixWorkspaceTest extends TestCase
 
     public function test_days_in_current_stage_uses_documented_hierarchy(): void
     {
-        $case = $this->newCase(FinancingType::Cash);
+        $case = $this->newCase(FinancingType::KprSubsidi);
 
-        $this->assertSame(0, $case->daysInCurrentStage());
+        $this->assertNull($case->daysInCurrentStage());
 
         app(RecordBiCheckAction::class)->handle($this->hq, [
             'sales_case_id' => $case->id,

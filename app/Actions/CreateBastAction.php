@@ -6,11 +6,10 @@ use App\BastStatus;
 use App\Models\AkadRecord;
 use App\Models\BastRecord;
 use App\Models\SalesCase;
-use App\Models\Unit;
 use App\Models\User;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
-use App\UnitStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -53,7 +52,7 @@ class CreateBastAction
                 'closed_at' => now(),
                 'closed_reason' => 'BAST completed',
             ]);
-            Unit::whereKey($case->unit_id)->update(['status' => UnitStatus::Terjual->value]);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $bast;
         });

@@ -2,12 +2,11 @@
 
 namespace App\Actions;
 
-use App\BiCheckResult;
 use App\Models\BiCheck;
 use App\Models\SalesCase;
 use App\Models\User;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -42,25 +41,9 @@ class RecordBiCheckAction
                 'created_by' => $user->id,
             ]);
 
-            $this->transitionStage($case, $data['result']);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $biCheck;
         });
-    }
-
-    private function transitionStage(SalesCase $case, mixed $result): void
-    {
-        if ($result === BiCheckResult::Clear) {
-            // Forward only: a case already past PSJB keeps its position.
-            $case->advanceStageTo(SalesCaseStage::Psjb);
-
-            return;
-        }
-
-        // REVIEW/REJECTED keep the case in BI_CHECKING, but never regress a
-        // case that has legitimately progressed beyond the PSJB stage.
-        if (! $case->current_stage->isBeyond(SalesCaseStage::Psjb)) {
-            $case->update(['current_stage' => SalesCaseStage::BiChecking]);
-        }
     }
 }

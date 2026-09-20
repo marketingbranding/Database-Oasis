@@ -11,8 +11,8 @@ use App\Models\Psjb;
 use App\Models\SalesCase;
 use App\Models\User;
 use App\PsjbStatus;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -84,7 +84,7 @@ class CreateDocumentSubmissionAction
                 throw ValidationException::withMessages(['sales_case_id' => 'Nomor urut submission bentrok. Silakan ulangi.']);
             }
 
-            $case->advanceStageTo(SalesCaseStage::ProsesBank);
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $submission;
         });

@@ -236,7 +236,7 @@ class PhaseThreePsjbTest extends TestCase
             'document_number' => 'PSJB-0002',
         ]);
 
-        $this->assertTrue($case->refresh()->current_stage === SalesCaseStage::ProsesBank);
+        $this->assertTrue($case->refresh()->current_stage === SalesCaseStage::Pemberkasan);
     }
 
     public function test_reissue_without_active_psjb_is_rejected(): void

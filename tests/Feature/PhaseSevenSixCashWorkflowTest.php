@@ -183,7 +183,7 @@ class PhaseSevenSixCashWorkflowTest extends TestCase
             ],
             array_keys($progress),
         );
-        $this->assertSame('current', $progress[SalesCaseStage::DataKonsumen->value]);
+        $this->assertSame('current', $progress[SalesCaseStage::Psjb->value]);
     }
 
     public function test_kpr_stepper_keeps_full_stage_list(): void

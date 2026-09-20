@@ -6,8 +6,8 @@ use App\DeveloperPpjbStatus;
 use App\Models\DeveloperPpjb;
 use App\Models\SalesCase;
 use App\Models\User;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -27,9 +27,7 @@ class CancelDeveloperPpjbAction
                 throw ValidationException::withMessages(['status' => 'PPJB tidak dapat dibatalkan setelah Akad, saat tidak aktif, atau case ditutup.']);
             }
             $ppjb->update(['status' => DeveloperPpjbStatus::Cancelled]);
-            if (! $case->current_stage->isBeyond(SalesCaseStage::Akad)) {
-                $case->update(['current_stage' => SalesCaseStage::PpjbDev]);
-            }
+            app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $ppjb->refresh();
         });

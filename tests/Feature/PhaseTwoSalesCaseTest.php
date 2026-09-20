@@ -72,7 +72,7 @@ class PhaseTwoSalesCaseTest extends TestCase
         $case = $this->createCase($user, $unit, ['source' => 'Website', 'booking_date' => '2026-09-01']);
 
         $this->assertTrue($case->case_status === SalesCaseStatus::Active);
-        $this->assertTrue($case->current_stage === SalesCaseStage::DataKonsumen);
+        $this->assertTrue($case->current_stage === SalesCaseStage::BiChecking);
         $this->assertSame($user->id, $case->created_by);
         $this->assertSame('Website', $case->source);
     }

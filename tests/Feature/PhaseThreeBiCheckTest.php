@@ -168,7 +168,7 @@ class PhaseThreeBiCheckTest extends TestCase
 
         $this->recordBi($user, $case, BiCheckResult::Review, '2026-09-10');
 
-        $this->assertTrue($case->refresh()->current_stage === SalesCaseStage::Pemberkasan);
+        $this->assertTrue($case->refresh()->current_stage === SalesCaseStage::BiChecking);
     }
 
     public function test_bi_records_are_isolated_across_cases_of_the_same_consumer(): void

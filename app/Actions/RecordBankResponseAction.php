@@ -10,8 +10,8 @@ use App\Models\BankProcess;
 use App\Models\DocumentSubmission;
 use App\Models\SalesCase;
 use App\Models\User;
-use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -98,13 +98,13 @@ class RecordBankResponseAction
 
             if ($responseType === BankResponseType::Approved) {
                 $submission->update(['status' => DocumentSubmissionStatus::Closed]);
-                $case->advanceStageTo(SalesCaseStage::PpjbDev);
+                app(SalesCaseStageResolver::class)->reconcile($case);
             } else {
                 if ($submission->status === DocumentSubmissionStatus::Submitted) {
                     $submission->update(['status' => DocumentSubmissionStatus::Processing]);
                 }
 
-                $case->advanceStageTo(SalesCaseStage::ProsesBank);
+                app(SalesCaseStageResolver::class)->reconcile($case);
             }
 
             return $process;

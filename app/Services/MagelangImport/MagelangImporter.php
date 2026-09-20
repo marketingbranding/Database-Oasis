@@ -22,7 +22,9 @@ use App\Models\SalesCase;
 use App\Models\Unit;
 use App\Models\User;
 use App\PsjbStatus;
+use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\SalesCaseStageResolver;
 use App\UnitStatus;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -211,7 +213,7 @@ final class MagelangImporter
             'source' => 'Migrasi Magelang',
             'import_source' => self::IMPORT_SOURCE,
             'import_source_id' => $row->sourceId,
-            'current_stage' => $row->derivedStage(),
+            'current_stage' => SalesCaseStage::BiChecking,
             'case_status' => $row->status,
             'closed_at' => $row->closedAt,
             'closed_reason' => $row->closedAt === null ? null : 'Migrasi Magelang',
@@ -310,6 +312,8 @@ final class MagelangImporter
                 'created_by' => $this->actor?->id,
             ]);
         }
+
+        app(SalesCaseStageResolver::class)->reconcile($case);
 
         return [$case->refresh(), $rowAnomalies];
     }
