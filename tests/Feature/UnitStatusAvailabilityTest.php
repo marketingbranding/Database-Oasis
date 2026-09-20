@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Actions\CreateAkadAction;
+use App\Actions\CreateBastAction;
 use App\Actions\CreateDeveloperPpjbAction;
 use App\Actions\CreatePsjbAction;
 use App\Actions\CreateSalesCaseAction;
 use App\Actions\MarkSalesCaseMundurAction;
+use App\Actions\MarkSalesCaseRejectedAction;
 use App\Actions\RecordBiCheckAction;
 use App\BiCheckResult;
 use App\FinancingType;
@@ -100,6 +103,22 @@ class UnitStatusAvailabilityTest extends TestCase
         app(CreateDeveloperPpjbAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'document_date' => now()->toDateString()]);
     }
 
+    public function test_waiting_list_can_reject_without_unit(): void
+    {
+        $case = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $this->unit->project_id, 'branch_id' => $this->unit->project->branch_id, 'financing_type' => FinancingType::KprSubsidi]);
+        $closed = app(MarkSalesCaseRejectedAction::class)->handle($this->user, $case, 'Tidak memenuhi syarat');
+        $this->assertSame(SalesCaseStatus::Reject, $closed->case_status);
+        $this->assertNotNull($closed->closed_at);
+        $this->assertNull($closed->unit_id);
+    }
+
+    public function test_historical_cancelled_status_remains_castable_and_current_statuses_are_operational_only(): void
+    {
+        $case = SalesCase::factory()->create(['case_status' => SalesCaseStatus::Cancelled]);
+        $this->assertSame(SalesCaseStatus::Cancelled, $case->refresh()->case_status);
+        $this->assertSame([SalesCaseStatus::Active, SalesCaseStatus::Completed, SalesCaseStatus::Mundur, SalesCaseStatus::Reject], SalesCaseStatus::current());
+    }
+
     public function test_waiting_list_can_mundur_without_unit(): void
     {
         $case = SalesCase::factory()->create([
@@ -113,6 +132,25 @@ class UnitStatusAvailabilityTest extends TestCase
 
         $this->assertSame(SalesCaseStatus::Mundur, $closed->case_status);
         $this->assertNull($closed->unit_id);
+    }
+
+    public function test_all_property_finalization_actions_reject_waiting_list_cases(): void
+    {
+        $case = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $this->unit->project_id, 'branch_id' => $this->unit->project->branch_id, 'financing_type' => FinancingType::KprSubsidi]);
+        $ppjb = DeveloperPpjb::factory()->create(['sales_case_id' => $case->id]);
+
+        foreach ([
+            fn () => app(CreateDeveloperPpjbAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'document_date' => now()->toDateString()]),
+            fn () => app(CreateAkadAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'developer_ppjb_id' => $ppjb->id, 'akad_date' => now()->toDateString()]),
+            fn () => app(CreateBastAction::class)->handle($this->user, ['sales_case_id' => $case->id, 'akad_id' => 'missing', 'bast_date' => now()->toDateString()]),
+        ] as $attempt) {
+            try {
+                $attempt();
+                $this->fail('Waiting List finalization unexpectedly succeeded.');
+            } catch (ValidationException $exception) {
+                $this->assertStringContainsString('kavling', strtolower($exception->getMessage()));
+            }
+        }
     }
 
     public function test_create_action_rejects_stale_booking_until_explicit_reconcile(): void
