@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\BankProcesses\Schemas;
 
 use App\BankResponseType;
-use App\Models\BankProcess;
 use App\Models\DocumentSubmission;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
@@ -21,18 +20,6 @@ class BankProcessForm
             Select::make('document_submission_id')->label('Submission')->options(fn (): array => self::submissionOptions())->searchable()->required(),
             Select::make('response_type')->label('Response')->options(BankResponseType::class)->live()->required(),
             DatePicker::make('response_date')->label('Tanggal Response')->default(now())->required(),
-            TextInput::make('sp3k_number')->label('Nomor SP3K')->live(onBlur: true)
-                ->required(fn (Get $get): bool => $get('response_type') === BankResponseType::Approved->value)
-                ->helperText(function (Get $get): ?string {
-                    $number = $get('sp3k_number');
-                    if (blank($number)) {
-                        return null;
-                    }
-
-                    $count = BankProcess::query()->where('sp3k_number', $number)->count();
-
-                    return $count > 0 ? "Peringatan: nomor SP3K sudah tercatat pada {$count} proses lain." : null;
-                }),
             DatePicker::make('sp3k_date')->label('Tanggal SP3K')->required(fn (Get $get): bool => $get('response_type') === BankResponseType::Approved->value),
             TextInput::make('credit_limit')->label('Plafon Kredit')->numeric()->minValue(0),
             TextInput::make('tenor')->label('Tenor')->numeric()->minValue(1),

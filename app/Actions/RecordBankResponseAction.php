@@ -11,6 +11,7 @@ use App\Models\DocumentSubmission;
 use App\Models\SalesCase;
 use App\Models\User;
 use App\SalesCaseStatus;
+use App\Services\BusinessNumberGenerator;
 use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -65,10 +66,8 @@ class RecordBankResponseAction
                 : BankResponseType::from($data['response_type']);
 
             if ($responseType === BankResponseType::Approved) {
-                if (blank($data['sp3k_number'] ?? null) || blank($data['sp3k_date'] ?? null)) {
-                    throw ValidationException::withMessages([
-                        'sp3k_number' => 'Nomor dan tanggal SP3K wajib untuk approval.',
-                    ]);
+                if (blank($data['sp3k_date'] ?? null)) {
+                    throw ValidationException::withMessages(['sp3k_date' => 'Tanggal SP3K wajib untuk approval.']);
                 }
 
                 if ($case->currentApprovedBankProcess()->exists()) {
@@ -84,7 +83,7 @@ class RecordBankResponseAction
                     'bank_id' => $submission->bank_id,
                     'response_type' => $responseType,
                     'response_date' => $data['response_date'],
-                    'sp3k_number' => $responseType === BankResponseType::Approved ? $data['sp3k_number'] : null,
+                    'sp3k_number' => $responseType === BankResponseType::Approved ? ($data['sp3k_number'] ?? null) : null,
                     'sp3k_date' => $responseType === BankResponseType::Approved ? $data['sp3k_date'] : null,
                     'credit_limit' => $data['credit_limit'] ?? null,
                     'tenor' => $data['tenor'] ?? null,
@@ -97,6 +96,7 @@ class RecordBankResponseAction
             }
 
             if ($responseType === BankResponseType::Approved) {
+                app(BusinessNumberGenerator::class)->ensureSp3kCode($process);
                 $submission->update(['status' => DocumentSubmissionStatus::Closed]);
                 app(SalesCaseStageResolver::class)->reconcile($case);
             } else {

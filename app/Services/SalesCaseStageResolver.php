@@ -42,7 +42,6 @@ final class SalesCaseStageResolver
 
         if ($case->bankProcesses()
             ->where('is_authoritative', true)
-            ->whereNotNull('sp3k_number')
             ->whereNotNull('sp3k_date')
             ->exists()) {
             return SalesCaseStage::PpjbDev;

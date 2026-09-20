@@ -7,6 +7,7 @@ use App\Models\DeveloperPpjb;
 use App\Models\SalesCase;
 use App\Models\User;
 use App\SalesCaseStatus;
+use App\Services\BusinessNumberGenerator;
 use App\Services\SalesCaseStageResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -41,6 +42,7 @@ class ReissueDeveloperPpjbAction
                 'document_number' => $data['document_number'] ?? null, 'document_date' => $data['document_date'],
                 'status' => DeveloperPpjbStatus::Active, 'notes' => $data['notes'] ?? null, 'created_by' => $user->id,
             ]);
+            app(BusinessNumberGenerator::class)->ensurePpjbCode($new);
             app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $new;

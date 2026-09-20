@@ -13,7 +13,6 @@ use App\SalesCaseStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -26,7 +25,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('document_number')->label('Nomor PPJB')->placeholder('-'), TextColumn::make('document_date')->label('Tanggal PPJB')->date(),
+            TextColumn::make('ppjb_code')->label('Kode PPJB')->placeholder('-'), TextColumn::make('document_date')->label('Tanggal PPJB')->date(),
             TextColumn::make('status')->badge(), TextColumn::make('bankProcess.sp3k_number')->label('SP3K')->placeholder('-'),
         ])->headerActions([$this->createAction()])->recordActions([$this->reissueAction(), $this->cancelAction()])->defaultSort('document_date', 'desc');
     }
@@ -34,7 +33,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
     /** @return array<int, mixed> */
     private function fields(): array
     {
-        return [TextInput::make('document_number')->label('Nomor PPJB'), DatePicker::make('document_date')->label('Tanggal PPJB')->default(now())->required(), Textarea::make('notes')->label('Catatan')];
+        return [DatePicker::make('document_date')->label('Tanggal PPJB')->default(now())->required(), Textarea::make('notes')->label('Catatan')];
     }
 
     private function createAction(): Action

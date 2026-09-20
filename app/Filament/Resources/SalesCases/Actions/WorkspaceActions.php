@@ -212,8 +212,6 @@ class WorkspaceActions
                     ->searchable()->required(),
                 Select::make('response_type')->label('Response')->options(BankResponseType::class)->live()->required(),
                 DatePicker::make('response_date')->label('Tanggal Response')->default(now())->required(),
-                TextInput::make('sp3k_number')->label('Nomor SP3K')
-                    ->required(fn ($state, $get): bool => $get('response_type') === BankResponseType::Approved->value),
                 DatePicker::make('sp3k_date')->label('Tanggal SP3K')
                     ->required(fn ($state, $get): bool => $get('response_type') === BankResponseType::Approved->value),
                 TextInput::make('credit_limit')->label('Plafon Kredit')->numeric(),
@@ -419,7 +417,6 @@ class WorkspaceActions
     private static function ppjbFields(): array
     {
         return [
-            TextInput::make('document_number')->label('Nomor PPJB'),
             DatePicker::make('document_date')->label('Tanggal PPJB')->default(now())->required(),
             Textarea::make('notes')->label('Catatan'),
         ];

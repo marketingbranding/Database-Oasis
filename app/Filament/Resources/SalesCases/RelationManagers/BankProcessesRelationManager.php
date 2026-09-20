@@ -60,7 +60,6 @@ class BankProcessesRelationManager extends RelationManager
                 })->required(),
                 Select::make('response_type')->label('Response')->options(BankResponseType::class)->live()->required(),
                 DatePicker::make('response_date')->label('Tanggal')->default(now())->required(),
-                TextInput::make('sp3k_number')->label('Nomor SP3K')->required(fn (Get $get): bool => $get('response_type') === BankResponseType::Approved->value),
                 DatePicker::make('sp3k_date')->label('Tanggal SP3K')->required(fn (Get $get): bool => $get('response_type') === BankResponseType::Approved->value),
                 TextInput::make('credit_limit')->label('Plafon Kredit')->numeric(), TextInput::make('tenor')->label('Tenor')->numeric(), Textarea::make('notes')->label('Catatan'),
             ])->action(function (array $data, RelationManager $livewire): void {

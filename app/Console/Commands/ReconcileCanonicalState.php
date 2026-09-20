@@ -157,9 +157,15 @@ class ReconcileCanonicalState extends Command
             $add('bank_process_without_submission', 'BankProcess evidence exists without DocumentSubmission.');
         }
         if ($case->bankProcesses()->where('is_authoritative', true)->where(function (Builder $query): void {
-            $query->whereNull('sp3k_number')->orWhereNull('sp3k_date');
+            $query->whereNull('sp3k_date');
         })->exists()) {
             $add('authoritative_sp3k_incomplete', 'Authoritative BankProcess has incomplete SP3K data.');
+        }
+        if ($case->bankProcesses()->where('is_authoritative', true)->whereNotNull('sp3k_date')->whereNull('sp3k_code')->exists()) {
+            $add('sp3k_system_code_missing', 'Authoritative SP3K evidence exists without canonical system code.');
+        }
+        if ($case->developerPpjbs()->whereNull('ppjb_code')->exists()) {
+            $add('ppjb_system_code_missing', 'Developer PPJB exists without canonical system code.');
         }
         if ($case->bankProcesses()->where('is_authoritative', true)->count() > 1) {
             $add('multiple_authoritative_bank_processes', 'More than one authoritative BankProcess exists.');

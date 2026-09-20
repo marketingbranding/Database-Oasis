@@ -12,6 +12,7 @@ use App\Models\SalesCase;
 use App\Models\User;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
+use App\Services\BusinessNumberGenerator;
 use App\Services\SalesCaseStageResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,7 @@ class CreateDeveloperPpjbAction
             if ($case->financing_type === FinancingType::KprSubsidi) {
                 /** @var BankProcess|null $approval */
                 $approval = $case->currentApprovedBankProcess()->lockForUpdate()->first();
-                if ($approval === null || blank($approval->sp3k_number) || $approval->sp3k_date === null) {
+                if ($approval === null || $approval->sp3k_date === null) {
                     throw ValidationException::withMessages(['sales_case_id' => 'KPR memerlukan approval bank authoritative dengan SP3K valid.']);
                 }
                 $bankProcessId = $approval->id;
@@ -65,6 +66,7 @@ class CreateDeveloperPpjbAction
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case sudah memiliki PPJB Developer aktif.']);
             }
 
+            app(BusinessNumberGenerator::class)->ensurePpjbCode($ppjb);
             app(SalesCaseStageResolver::class)->reconcile($case);
 
             return $ppjb;

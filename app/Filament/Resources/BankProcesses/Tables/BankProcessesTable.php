@@ -21,7 +21,7 @@ class BankProcessesTable
             TextColumn::make('documentSubmission.sequence')->label('Submission #'),
             TextColumn::make('response_type')->label('Response')->badge()->formatStateUsing(fn (BankResponseType $state): string => $state->getLabel()),
             TextColumn::make('response_date')->label('Tanggal')->date()->sortable(),
-            TextColumn::make('sp3k_number')->label('SP3K')->searchable()->placeholder('-'),
+            TextColumn::make('sp3k_code')->label('Kode SP3K')->searchable()->placeholder('-'),
             IconColumn::make('is_authoritative')->label('Authoritative')->boolean(),
             TextColumn::make('updated_at')->label('Diubah')->dateTime()->sortable(),
         ])->filters([
