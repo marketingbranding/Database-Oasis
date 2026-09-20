@@ -2,8 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\BankResponseType;
 use App\DeveloperPpjbStatus;
+use App\FinancingType;
+use App\Models\Bank;
+use App\Models\BankProcess;
 use App\Models\Branch;
+use App\Models\DocumentSubmission;
 use App\Models\Project;
 use App\Models\SalesCase;
 use App\Models\Unit;
@@ -122,6 +127,7 @@ class ReconcileCanonicalStateTest extends TestCase
         $this->assertSame(1, $first['units']['changes_required']);
         $this->assertSame(0, $first['units']['changes_applied']);
         $this->assertStringNotContainsString('SECRET_CONSUMER_NAME', $firstRaw);
+        $this->assertStringNotContainsString('3374010101909999', $firstRaw);
         $this->assertStringNotContainsString('SECRET_PHONE_VALUE', $firstRaw);
 
         Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--json' => true]);
@@ -133,6 +139,30 @@ class ReconcileCanonicalStateTest extends TestCase
         $this->assertSame(UnitStatus::Tersedia, $unit->fresh()->status);
     }
 
+    public function test_anomaly_json_reports_identifiers_deterministically_without_repairing_history(): void
+    {
+        $this->seed();
+        $branch = Branch::factory()->create();
+        $project = Project::factory()->for($branch)->create();
+        $completed = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $project->id, 'branch_id' => $branch->id, 'case_status' => SalesCaseStatus::Completed]);
+        $finalized = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $project->id, 'branch_id' => $branch->id]);
+        $finalized->developerPpjbs()->create(['status' => DeveloperPpjbStatus::Active, 'document_date' => now()]);
+
+        Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--json' => true]);
+        $first = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+        Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--json' => true]);
+        $second = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertGreaterThan(0, $first['anomalies']['total']);
+        $this->assertArrayHasKey('completed_without_bast', $first['anomalies']['counts']);
+        $this->assertArrayHasKey('unit_missing_at_finalization', $first['anomalies']['counts']);
+        $this->assertContains($completed->id, array_column($first['anomalies']['items'], 'sales_case_id'));
+        $this->assertContains($finalized->id, array_column($first['anomalies']['items'], 'sales_case_id'));
+        $this->assertSame($first['anomalies'], $second['anomalies']);
+        $this->assertSame(SalesCaseStatus::Completed, $completed->refresh()->case_status);
+        $this->assertNull($finalized->refresh()->unit_id);
+    }
+
     public function test_human_output_contains_audit_sections(): void
     {
         $this->seed();
@@ -142,6 +172,24 @@ class ReconcileCanonicalStateTest extends TestCase
             $command->expectsOutputToContain($text);
         }
         $command->assertExitCode(0);
+    }
+
+    public function test_apply_preserves_unrelated_sales_case_and_unit_fields(): void
+    {
+        $this->seed();
+        $branch = Branch::factory()->create();
+        $project = Project::factory()->for($branch)->create();
+        $unit = Unit::factory()->for($project)->create(['status' => UnitStatus::Tersedia, 'unit_code' => 'SAFE-01', 'block' => 'A', 'number' => '01', 'building_progress' => 42]);
+        $case = SalesCase::factory()->forUnit($unit)->create(['current_stage' => SalesCaseStage::DataKonsumen, 'source' => 'Sentinel', 'transfer_reason' => 'Keep', 'needs_review' => true, 'needs_review_reason' => 'Keep reason']);
+        $caseBefore = $case->only(['consumer_id', 'unit_id', 'project_id', 'branch_id', 'financing_type', 'booking_date', 'source', 'transfer_reason', 'needs_review', 'needs_review_reason', 'sales_pic_id', 'coordinator_id', 'case_status']);
+        $unitBefore = $unit->only(['project_id', 'unit_code', 'block', 'number', 'building_progress', 'electricity_status', 'water_status']);
+
+        $this->artisan('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--apply' => true])->assertExitCode(0);
+
+        $this->assertSame($caseBefore, $case->refresh()->only(array_keys($caseBefore)));
+        $this->assertSame($unitBefore, $unit->refresh()->only(array_keys($unitBefore)));
+        $this->assertSame(SalesCaseStage::BiChecking, $case->current_stage);
+        $this->assertSame(UnitStatus::Booking, $unit->status);
     }
 
     public function test_active_akad_stays_active_and_unit_becomes_sold(): void
@@ -161,6 +209,31 @@ class ReconcileCanonicalStateTest extends TestCase
         $this->assertSame(UnitStatus::Terjual, $unit->fresh()->status);
         $this->assertNull($case->closed_at);
         $this->assertSame(0, $case->bast()->count());
+    }
+
+    public function test_waiting_list_with_authoritative_sp3k_reconciles_stage_without_assigning_unit(): void
+    {
+        $this->seed();
+        $branch = Branch::factory()->create();
+        $project = Project::factory()->for($branch)->create();
+        $case = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $project->id, 'branch_id' => $branch->id, 'financing_type' => FinancingType::KprSubsidi, 'current_stage' => SalesCaseStage::DataKonsumen]);
+        $bank = Bank::factory()->create();
+        $submission = DocumentSubmission::factory()->create(['sales_case_id' => $case->id, 'bank_id' => $bank->id]);
+        $process = BankProcess::factory()->create(['sales_case_id' => $case->id, 'document_submission_id' => $submission->id, 'bank_id' => $bank->id, 'response_type' => BankResponseType::Approved, 'is_authoritative' => true, 'sp3k_number' => 'SP3K-RECON', 'sp3k_date' => '2026-09-10']);
+        $unitCount = Unit::query()->count();
+
+        $this->artisan('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--apply' => true])->assertExitCode(0);
+
+        $fresh = $case->refresh();
+        $this->assertSame(SalesCaseStage::PpjbDev, $fresh->current_stage);
+        $this->assertSame(SalesCaseStatus::Active, $fresh->case_status);
+        $this->assertNull($fresh->unit_id);
+        $this->assertSame($project->id, $fresh->project_id);
+        $this->assertSame($unitCount, Unit::query()->count());
+        $this->assertSame($submission->id, $submission->refresh()->id);
+        $this->assertSame($process->id, $process->refresh()->id);
+        $this->assertSame('SP3K-RECON', $process->sp3k_number);
+        $this->assertSame('2026-09-10', $process->sp3k_date->toDateString());
     }
 
     public function test_waiting_list_is_not_assigned_or_project_rewritten(): void
