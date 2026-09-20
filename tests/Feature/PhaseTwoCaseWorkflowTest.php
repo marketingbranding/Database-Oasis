@@ -11,6 +11,7 @@ use App\Filament\Resources\SalesCases\Pages\ViewSalesCase;
 use App\FinancingType;
 use App\Models\Branch;
 use App\Models\Consumer;
+use App\Models\DeveloperPpjb;
 use App\Models\Project;
 use App\Models\Psjb;
 use App\Models\SalesCase;
@@ -159,6 +160,48 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         $this->assertSame($newUnit->id, $assigned->unit_id);
         $this->assertSame(UnitStatus::Booking->value, $newUnit->fresh()->status->value);
         $this->assertStringContainsString("Penempatan kavling ke {$newUnit->unit_code}", $assigned->caseNotes()->firstOrFail()->note);
+    }
+
+    public function test_initial_assignment_is_blocked_after_developer_ppjb(): void
+    {
+        $user = $this->hqAdmin();
+        $branch = Branch::factory()->create();
+        $project = Project::factory()->for($branch)->create();
+        $case = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $project->id, 'branch_id' => $branch->id]);
+        $ppjb = DeveloperPpjb::factory()->create(['sales_case_id' => $case->id]);
+        $unit = Unit::factory()->for($project)->create();
+
+        try {
+            app(MoveSalesCaseUnitAction::class)->handle($user, $case, $unit->id, 'Penempatan');
+            $this->fail('Initial assignment after PPJB unexpectedly succeeded.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('PPJB Developer', $exception->getMessage());
+        }
+
+        $this->assertNull($case->refresh()->unit_id);
+        $this->assertSame(UnitStatus::Tersedia, $unit->fresh()->status);
+        $this->assertSame($case->id, $ppjb->refresh()->sales_case_id);
+    }
+
+    public function test_branch_admin_cannot_cancel_other_branch_psjb(): void
+    {
+        $branchA = Branch::factory()->create();
+        $branchB = Branch::factory()->create();
+        $admin = User::factory()->create(['branch_id' => $branchA->id]);
+        $admin->assignRole(UserRole::BranchAdmin);
+        $case = $this->activeCase($this->hqAdmin(), $branchB);
+        $psjb = Psjb::factory()->create(['sales_case_id' => $case->id]);
+        $stage = $case->current_stage;
+
+        try {
+            app(CancelPsjbAction::class)->handle($admin, $psjb);
+            $this->fail('Cross-branch PSJB cancellation unexpectedly succeeded.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('luar cabang', $exception->getMessage());
+        }
+
+        $this->assertSame('ACTIVE', $psjb->refresh()->status->value);
+        $this->assertSame($stage, $case->refresh()->current_stage);
     }
 
     public function test_active_psjb_blocks_move_until_cancelled(): void

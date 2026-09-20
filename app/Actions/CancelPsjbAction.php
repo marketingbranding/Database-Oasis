@@ -18,12 +18,16 @@ class CancelPsjbAction
     {
         Gate::forUser($user)->authorize('create', Psjb::class);
 
-        return DB::transaction(function () use ($psjb): Psjb {
+        return DB::transaction(function () use ($user, $psjb): Psjb {
             /** @var Psjb $psjb */
             $psjb = Psjb::whereKey($psjb->id)->lockForUpdate()->firstOrFail();
 
             /** @var SalesCase $case */
             $case = SalesCase::whereKey($psjb->sales_case_id)->lockForUpdate()->firstOrFail();
+
+            if ($user->isBranchScoped() && ! $user->belongsToBranch($case->branch_id)) {
+                throw ValidationException::withMessages(['sales_case_id' => 'Sales case berada di luar cabang Anda.']);
+            }
 
             if ($psjb->status !== PsjbStatus::Active) {
                 throw ValidationException::withMessages(['status' => 'PSJB tidak aktif.']);

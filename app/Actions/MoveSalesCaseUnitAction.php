@@ -38,7 +38,9 @@ class MoveSalesCaseUnitAction
                 throw ValidationException::withMessages(['case_status' => 'Sales case tidak dapat pindah kavling setelah Akad.']);
             }
 
-            if ($case->unit_id !== null) {
+            if ($case->unit_id === null) {
+                $this->ensureInitialAssignmentCanProceed($case);
+            } else {
                 $this->ensureAssignedUnitCanMove($case);
             }
 
@@ -99,6 +101,13 @@ class MoveSalesCaseUnitAction
 
             return $case->refresh();
         });
+    }
+
+    private function ensureInitialAssignmentCanProceed(SalesCase $case): void
+    {
+        if ($case->developerPpjbs()->exists()) {
+            throw ValidationException::withMessages(['new_unit_id' => 'PPJB Developer sudah tercatat. Penempatan kavling awal tidak diizinkan.']);
+        }
     }
 
     private function ensureAssignedUnitCanMove(SalesCase $case): void
