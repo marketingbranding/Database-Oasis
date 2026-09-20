@@ -83,7 +83,7 @@ class ReconcileCanonicalState extends Command
                     $key = $actual->value.' -> '.$expected->value;
                     $summary['stage_transitions'][$key] = ($summary['stage_transitions'][$key] ?? 0) + 1;
                     if ($apply) {
-                        $case->update(['current_stage' => $expected]);
+                        $stageResolver->reconcile($case);
                         $summary['sales_cases']['changes_applied']++;
                     }
                 }
@@ -105,7 +105,7 @@ class ReconcileCanonicalState extends Command
                     $key = $unit->status->value.' -> '.$expected->value;
                     $summary['unit_status_transitions'][$key] = ($summary['unit_status_transitions'][$key] ?? 0) + 1;
                     if ($apply) {
-                        $unit->update(['status' => $expected->value]);
+                        $unitResolver->reconcile($unit);
                         $summary['units']['changes_applied']++;
                     }
                 }
