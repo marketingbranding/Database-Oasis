@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\BankResponseType;
+use App\BastStatus;
 use App\DeveloperPpjbStatus;
 use App\FinancingType;
 use App\Models\Bank;
@@ -15,6 +16,7 @@ use App\Models\Unit;
 use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use App\UnitStatus;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
@@ -161,6 +163,54 @@ class ReconcileCanonicalStateTest extends TestCase
         $this->assertSame($first['anomalies'], $second['anomalies']);
         $this->assertSame(SalesCaseStatus::Completed, $completed->refresh()->case_status);
         $this->assertNull($finalized->refresh()->unit_id);
+    }
+
+    public function test_remaining_reachable_anomalies_are_reported_without_history_repair(): void
+    {
+        $this->seed();
+        $branchA = Branch::factory()->create();
+        $branchB = Branch::factory()->create();
+        $projectA = Project::factory()->for($branchA)->create();
+        $projectB = Project::factory()->for($branchB)->create();
+        $unitB = Unit::factory()->for($projectB)->create();
+
+        $mismatch = SalesCase::factory()->create(['branch_id' => $branchA->id, 'project_id' => $projectA->id, 'unit_id' => $unitB->id]);
+        SalesCase::factory()->create(['branch_id' => $branchA->id, 'project_id' => $projectB->id, 'unit_id' => null]);
+        $bastMismatch = SalesCase::factory()->create(['branch_id' => $branchA->id, 'case_status' => SalesCaseStatus::Active]);
+        $ppjb = $bastMismatch->developerPpjbs()->create(['status' => DeveloperPpjbStatus::Active, 'document_date' => now()]);
+        $akad = $bastMismatch->akad()->create(['developer_ppjb_id' => $ppjb->id, 'akad_date' => now()]);
+        $bastMismatch->bast()->create(['akad_id' => $akad->id, 'bast_date' => now(), 'status' => BastStatus::Completed]);
+
+        $akadWithoutPpjb = SalesCase::factory()->create(['branch_id' => $branchA->id]);
+        $deletedPpjb = $akadWithoutPpjb->developerPpjbs()->create(['status' => DeveloperPpjbStatus::Active, 'document_date' => now()]);
+        $akadWithoutPpjb->akad()->create(['developer_ppjb_id' => $deletedPpjb->id, 'akad_date' => now()]);
+        $deletedPpjb->delete();
+
+        $bankCase = SalesCase::factory()->create(['branch_id' => $branchA->id, 'financing_type' => FinancingType::KprSubsidi]);
+        BankProcess::factory()->create(['sales_case_id' => $bankCase->id, 'is_authoritative' => true, 'sp3k_number' => null, 'sp3k_date' => null]);
+
+        Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branchA->id, '--json' => true]);
+        $payload = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+        foreach (['project_unit_mismatch', 'branch_project_mismatch', 'unit_branch_mismatch', 'bast_status_mismatch', 'akad_without_ppjb', 'authoritative_sp3k_incomplete'] as $type) {
+            $this->assertArrayHasKey($type, $payload['anomalies']['counts']);
+        }
+        $this->assertGreaterThanOrEqual(5, $payload['anomalies']['total']);
+        $this->assertContains($mismatch->id, array_column($payload['anomalies']['items'], 'sales_case_id'));
+        $this->assertSame(SalesCaseStatus::Active, $bastMismatch->refresh()->case_status);
+        $this->assertSame($projectA->id, $mismatch->refresh()->project_id);
+        $this->assertSame($unitB->id, $mismatch->unit_id);
+        $this->assertNull($bankCase->bankProcesses()->firstOrFail()->sp3k_number);
+    }
+
+    public function test_database_guards_prevent_multiple_authoritative_bank_processes(): void
+    {
+        $this->seed();
+        $case = SalesCase::factory()->create();
+        BankProcess::factory()->approved()->create(['sales_case_id' => $case->id]);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+        BankProcess::factory()->approved()->create(['sales_case_id' => $case->id]);
     }
 
     public function test_human_output_contains_audit_sections(): void
