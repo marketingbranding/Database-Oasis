@@ -38,6 +38,10 @@ class MoveSalesCaseUnitAction
                 throw ValidationException::withMessages(['case_status' => 'Sales case tidak dapat pindah kavling setelah Akad.']);
             }
 
+            if ($case->unit_id !== null) {
+                $this->ensureAssignedUnitCanMove($case);
+            }
+
             // Lock both units in a deterministic order to avoid deadlocks between opposing moves.
             $units = Unit::query()
                 ->with('project')
@@ -95,5 +99,24 @@ class MoveSalesCaseUnitAction
 
             return $case->refresh();
         });
+    }
+
+    private function ensureAssignedUnitCanMove(SalesCase $case): void
+    {
+        if ($case->developerPpjbs()->exists()) {
+            throw ValidationException::withMessages(['new_unit_id' => 'PPJB Developer sudah tercatat. Pindah kavling normal tidak diizinkan.']);
+        }
+
+        if ($case->bankProcesses()->exists()) {
+            throw ValidationException::withMessages(['new_unit_id' => 'Proses bank atau SP3K sudah tercatat. Pindah kavling normal tidak diizinkan.']);
+        }
+
+        if ($case->documentSubmissions()->exists()) {
+            throw ValidationException::withMessages(['new_unit_id' => 'Pemberkasan sudah tercatat. Pindah kavling normal tidak diizinkan.']);
+        }
+
+        if ($case->activePsjb()->exists()) {
+            throw ValidationException::withMessages(['new_unit_id' => 'PSJB aktif masih terkait dengan kavling saat ini. Batalkan PSJB terlebih dahulu, pindahkan kavling, lalu buat PSJB baru.']);
+        }
     }
 }

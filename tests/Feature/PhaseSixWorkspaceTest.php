@@ -219,7 +219,7 @@ class PhaseSixWorkspaceTest extends TestCase
         $unitA = Unit::factory()->for(Project::factory()->for($branch))->create();
         $unitB = Unit::factory()->for(Project::factory()->for($branch))->create();
 
-        $case = $this->cashCaseOn($unitA);
+        $case = $this->newCase(FinancingType::Cash, $unitA);
         $moved = app(MoveSalesCaseUnitAction::class)->handle($this->hq, $case, $unitB->id, 'dekat jalan');
 
         $this->assertSame($case->id, $moved->id);

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\CancelPsjbAction;
 use App\Actions\CreateSalesCaseAction;
 use App\Actions\MarkSalesCaseMundurAction;
 use App\Actions\MarkSalesCaseRejectedAction;
@@ -11,6 +12,7 @@ use App\FinancingType;
 use App\Models\Branch;
 use App\Models\Consumer;
 use App\Models\Project;
+use App\Models\Psjb;
 use App\Models\SalesCase;
 use App\Models\Unit;
 use App\Models\User;
@@ -157,6 +159,34 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         $this->assertSame($newUnit->id, $assigned->unit_id);
         $this->assertSame(UnitStatus::Booking->value, $newUnit->fresh()->status->value);
         $this->assertStringContainsString("Penempatan kavling ke {$newUnit->unit_code}", $assigned->caseNotes()->firstOrFail()->note);
+    }
+
+    public function test_active_psjb_blocks_move_until_cancelled(): void
+    {
+        $user = $this->hqAdmin();
+        $branch = Branch::factory()->create();
+        $case = $this->activeCase($user, $branch);
+        $oldUnit = $case->unit;
+        $newUnit = $this->makeUnit($branch);
+        $psjb = Psjb::factory()->create(['sales_case_id' => $case->id]);
+
+        try {
+            app(MoveSalesCaseUnitAction::class)->handle($user, $case, $newUnit->id, 'Pindah');
+            $this->fail('Move with active PSJB unexpectedly succeeded.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('PSJB aktif', $exception->getMessage());
+        }
+
+        $this->assertSame($oldUnit->id, $case->refresh()->unit_id);
+        $this->assertSame(UnitStatus::Booking, $oldUnit->fresh()->status);
+        $this->assertSame(UnitStatus::Tersedia, $newUnit->fresh()->status);
+
+        app(CancelPsjbAction::class)->handle($user, $psjb);
+        $moved = app(MoveSalesCaseUnitAction::class)->handle($user, $case, $newUnit->id, 'Pindah aman');
+
+        $this->assertSame($case->id, $moved->id);
+        $this->assertSame($newUnit->id, $moved->unit_id);
+        $this->assertSame('CANCELLED', $psjb->refresh()->status->value);
     }
 
     public function test_pindah_kavling_rejects_non_active_case(): void
