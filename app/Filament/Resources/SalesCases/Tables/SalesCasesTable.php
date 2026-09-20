@@ -65,6 +65,7 @@ class SalesCasesTable
                 TextColumn::make('sp3k_identifier')
                     ->label('SP3K')
                     ->state(fn (SalesCase $record): string => $record->currentApprovedBankProcess?->displaySp3kIdentifier() ?? '-')
+                    ->searchable(['currentApprovedBankProcess.sp3k_code', 'currentApprovedBankProcess.sp3k_number'])
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('daysInCurrentStage')
                     ->label('Hari di Tahap')

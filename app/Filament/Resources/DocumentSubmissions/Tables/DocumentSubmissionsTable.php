@@ -21,7 +21,7 @@ class DocumentSubmissionsTable
             TextColumn::make('sequence')->label('Submission #')->sortable(),
             TextColumn::make('submission_date')->label('Tanggal')->date()->sortable(),
             TextColumn::make('latestBankProcess.response_type')->label('Response Terakhir')->badge()->placeholder('-'),
-            TextColumn::make('sp3k_identifier')->label('SP3K')->state(fn (DocumentSubmission $record): string => $record->latestBankProcess?->displaySp3kIdentifier() ?? '-'),
+            TextColumn::make('sp3k_identifier')->label('SP3K')->state(fn (DocumentSubmission $record): string => $record->latestBankProcess?->displaySp3kIdentifier() ?? '-')->searchable(['latestBankProcess.sp3k_code', 'latestBankProcess.sp3k_number']),
             TextColumn::make('status')->badge()->formatStateUsing(fn (DocumentSubmissionStatus $state): string => $state->getLabel()),
             TextColumn::make('updated_at')->label('Diubah')->dateTime()->sortable(),
         ])->filters([

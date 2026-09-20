@@ -13,7 +13,7 @@ class AkadRecordsTable
         return $table->columns([
             TextColumn::make('salesCase.consumer.name')->label('Konsumen')->searchable(), TextColumn::make('salesCase.consumer.nik')->label('NIK')->searchable(),
             TextColumn::make('salesCase.project.name')->label('Proyek'), TextColumn::make('salesCase.unit.unit_code')->label('Unit')->searchable(),
-            TextColumn::make('salesCase.financing_type')->label('Financing')->badge(), TextColumn::make('ppjb_identifier')->label('PPJB')->state(fn (AkadRecord $record): string => $record->developerPpjb->displayPpjbIdentifier()),
+            TextColumn::make('salesCase.financing_type')->label('Financing')->badge(), TextColumn::make('ppjb_identifier')->label('PPJB')->state(fn (AkadRecord $record): string => $record->developerPpjb->displayPpjbIdentifier())->searchable(['developerPpjb.ppjb_code', 'developerPpjb.document_number']),
             TextColumn::make('akad_date')->label('Tanggal Akad')->date()->sortable(), TextColumn::make('document_number')->label('Nomor Akad')->searchable()->placeholder('-'),
             TextColumn::make('akad_quality')->label('Kualitas')->placeholder('-'), TextColumn::make('updated_at')->dateTime()->sortable(),
         ])->defaultSort('akad_date', 'desc');

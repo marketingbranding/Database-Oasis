@@ -21,7 +21,7 @@ class AkadRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('ppjb_identifier')->label('PPJB')->state(fn (AkadRecord $record): string => $record->developerPpjb->displayPpjbIdentifier()), TextColumn::make('document_number')->label('Nomor Akad')->placeholder('-'),
+            TextColumn::make('ppjb_identifier')->label('PPJB')->state(fn (AkadRecord $record): string => $record->developerPpjb->displayPpjbIdentifier())->searchable(['developerPpjb.ppjb_code', 'developerPpjb.document_number']), TextColumn::make('document_number')->label('Nomor Akad')->placeholder('-'),
             TextColumn::make('akad_date')->label('Tanggal Akad')->date(), TextColumn::make('akad_quality')->label('Kualitas Akad')->placeholder('-'),
         ])->headerActions([
             Action::make('createAkad')->label('Buat Akad')->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord() instanceof SalesCase && ! $livewire->getOwnerRecord()->akad()->exists() && (User::current()?->can('create', AkadRecord::class) ?? false))

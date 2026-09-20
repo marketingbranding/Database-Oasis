@@ -76,7 +76,7 @@ class Sp3kMonitoring extends Page implements HasTable
                 TextColumn::make('project.name')->label('Proyek')->sortable(),
                 TextColumn::make('unit.unit_code')->label('Unit')->searchable(),
                 TextColumn::make('currentApprovedBankProcess.bank.name')->label('Bank'),
-                TextColumn::make('sp3k_identifier')->label('SP3K')->state(fn (SalesCase $record): string => $record->currentApprovedBankProcess->displaySp3kIdentifier()),
+                TextColumn::make('sp3k_identifier')->label('SP3K')->state(fn (SalesCase $record): string => $record->currentApprovedBankProcess->displaySp3kIdentifier())->searchable(['currentApprovedBankProcess.sp3k_code', 'currentApprovedBankProcess.sp3k_number']),
                 TextColumn::make('currentApprovedBankProcess.sp3k_date')->label('Tanggal SP3K')->date()->sortable(),
                 TextColumn::make('sp3k_aging')->label('Aging')->state(fn (SalesCase $record): string => $record->currentApprovedBankProcess->sp3k_date->startOfDay()->diffInDays(Carbon::today()).' hari'),
                 TextColumn::make('akadReadiness.building_progress')->label('Bangunan')->suffix('%')->placeholder('-'),
