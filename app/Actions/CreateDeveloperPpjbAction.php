@@ -28,8 +28,8 @@ class CreateDeveloperPpjbAction
         return DB::transaction(function () use ($user, $data): DeveloperPpjb {
             /** @var SalesCase $case */
             $case = SalesCase::whereKey($data['sales_case_id'] ?? null)->lockForUpdate()->firstOrFail();
-            $case->ensureAssignedUnit();
             $this->validateCase($user, $case);
+            $case->ensureAssignedUnit();
 
             if ($case->activeDeveloperPpjb()->exists()) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case sudah memiliki PPJB Developer aktif.']);

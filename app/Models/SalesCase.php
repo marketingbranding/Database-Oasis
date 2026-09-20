@@ -367,7 +367,6 @@ class SalesCase extends Model
     {
         return self::query()
             ->where('case_status', SalesCaseStatus::Active->value)
-            ->whereNotNull('unit_id')
             ->with(['consumer', 'unit'])
             ->when($user?->isBranchScoped(), fn (Builder $query) => $query->where('branch_id', $user->branch_id))
             ->when(filled($search), fn (Builder $query) => $query->where(

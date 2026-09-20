@@ -95,7 +95,7 @@ class SalesCasesTable
                     ->options(FinancingType::class),
                 SelectFilter::make('case_status')
                     ->label('Status')
-                    ->options(SalesCaseStatus::class),
+                    ->options(collect(SalesCaseStatus::current())->mapWithKeys(fn (SalesCaseStatus $status): array => [$status->value => $status->getLabel()])->all()),
                 SelectFilter::make('current_stage')
                     ->label('Stage')
                     ->options(SalesCaseStage::class),
