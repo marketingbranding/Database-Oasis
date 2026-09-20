@@ -76,7 +76,10 @@ final class MissingSp3kSystemCodeRule implements RepairRule
     {
         $process = $this->target($target);
 
-        return ['issue_code' => $issue->issueCode, 'sales_case_id' => $issue->salesCaseId, 'branch_id' => $issue->branchId, 'target_type' => $issue->targetType, 'target_id' => $issue->targetId, 'is_authoritative' => $process->is_authoritative, 'sp3k_date' => $process->sp3k_date?->toDateString(), 'sp3k_code' => $process->sp3k_code];
+        $payload = ['issue_code' => $issue->issueCode, 'sales_case_id' => $issue->salesCaseId, 'branch_id' => $issue->branchId, 'target_type' => $issue->targetType, 'target_id' => $issue->targetId, 'is_authoritative' => $process->is_authoritative, 'sp3k_date' => $process->sp3k_date?->toDateString(), 'sp3k_code' => $process->sp3k_code, 'sp3k_number' => $process->sp3k_number, 'response_type' => $process->response_type->value, 'bank_id' => $process->bank_id, 'document_submission_id' => $process->document_submission_id];
+        ksort($payload);
+
+        return $payload;
     }
 
     public function apply(Model $target): string

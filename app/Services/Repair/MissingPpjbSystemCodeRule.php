@@ -76,7 +76,10 @@ final class MissingPpjbSystemCodeRule implements RepairRule
     {
         $ppjb = $this->target($target);
 
-        return ['issue_code' => $issue->issueCode, 'sales_case_id' => $issue->salesCaseId, 'branch_id' => $issue->branchId, 'target_type' => $issue->targetType, 'target_id' => $issue->targetId, 'document_date' => $ppjb->document_date->toDateString(), 'status' => $ppjb->status->value, 'ppjb_code' => $ppjb->ppjb_code];
+        $payload = ['issue_code' => $issue->issueCode, 'sales_case_id' => $issue->salesCaseId, 'branch_id' => $issue->branchId, 'target_type' => $issue->targetType, 'target_id' => $issue->targetId, 'ppjb_code' => $ppjb->ppjb_code, 'document_number' => $ppjb->document_number, 'document_date' => $ppjb->document_date->toDateString(), 'status' => $ppjb->status->value, 'bank_process_id' => $ppjb->bank_process_id];
+        ksort($payload);
+
+        return $payload;
     }
 
     public function apply(Model $target): string
