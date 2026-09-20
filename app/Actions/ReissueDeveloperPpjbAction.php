@@ -25,10 +25,10 @@ class ReissueDeveloperPpjbAction
             if ($user->isBranchScoped() && ! $user->belongsToBranch($case->branch_id)) {
                 throw ValidationException::withMessages(['sales_case_id' => 'Sales case berada di luar cabang Anda.']);
             }
-            $case->ensureAssignedUnit();
             if ($case->case_status !== SalesCaseStatus::Active || $case->akad()->exists()) {
                 throw ValidationException::withMessages(['sales_case_id' => 'PPJB tidak dapat di-reissue setelah Akad atau case ditutup.']);
             }
+            $case->ensureAssignedUnit();
             /** @var DeveloperPpjb|null $old */
             $old = $case->activeDeveloperPpjb()->lockForUpdate()->first();
             if ($old === null) {

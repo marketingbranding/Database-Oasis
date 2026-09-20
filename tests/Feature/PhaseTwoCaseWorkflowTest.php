@@ -87,18 +87,6 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         $this->assertSame(UnitStatus::Tersedia->value, $closed->unit()->first()->status->value);
     }
 
-    public function test_cancel_closes_case_and_releases_unit(): void
-    {
-        $user = $this->hqAdmin();
-        $case = $this->activeCase($user);
-
-        $closed = app(MarkSalesCaseMundurAction::class)->handle($user, $case, 'Tidak lanjut');
-
-        $this->assertTrue($closed->case_status === SalesCaseStatus::Mundur);
-        $this->assertNotNull($closed->closed_at);
-        $this->assertSame(UnitStatus::Tersedia->value, $closed->unit()->first()->status->value);
-    }
-
     public function test_closing_a_non_active_case_is_rejected(): void
     {
         $user = $this->hqAdmin();

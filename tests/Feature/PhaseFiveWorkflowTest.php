@@ -153,7 +153,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $this->expectValidation(fn () => $this->createAkad($caseA, $ppjbA));
     }
 
-    public function test_post_akad_closing_moving_reissue_and_cancel_are_blocked(): void
+    public function test_post_akad_closing_moving_reissue_and_ppjb_cancellation_are_blocked(): void
     {
         $case = $this->cashReadyCase();
         $ppjb = $this->createPpjb($case);
@@ -161,7 +161,6 @@ class PhaseFiveWorkflowTest extends TestCase
 
         $this->expectValidation(fn () => app(MarkSalesCaseMundurAction::class)->handle($this->hq, $case, 'x'));
         $this->expectValidation(fn () => app(MarkSalesCaseRejectedAction::class)->handle($this->hq, $case, 'x'));
-        $this->expectValidation(fn () => app(MarkSalesCaseMundurAction::class)->handle($this->hq, $case, 'x'));
         $this->expectValidation(fn () => app(MoveSalesCaseUnitAction::class)->handle($this->hq, $case, Unit::factory()->for(Project::factory()->for($case->branch))->create()->id, 'x'));
         $this->expectValidation(fn () => app(ReissueDeveloperPpjbAction::class)->handle($this->hq, $case, ['document_date' => '2026-09-23']));
         $this->expectValidation(fn () => app(CancelDeveloperPpjbAction::class)->handle($this->hq, $ppjb));
