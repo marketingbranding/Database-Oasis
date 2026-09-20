@@ -173,7 +173,7 @@ final class MagelangImporter
             $report['imported'][] = $case->id;
         }
 
-        $this->refreshUnitStatuses(array_values($units));
+        $this->refreshUnitStatuses();
 
         return $report;
     }
@@ -438,26 +438,25 @@ final class MagelangImporter
         return 'PERLU DICEK'.$source.': '.implode(', ', array_unique($anomalies));
     }
 
-    /**
-     * @param  list<Unit>  $units
-     */
-    private function refreshUnitStatuses(array $units): void
+    public function refreshUnitStatuses(): void
     {
-        foreach ($units as $unit) {
-            $statuses = SalesCase::query()
-                ->where('unit_id', $unit->id)
-                ->pluck('case_status')
-                ->all();
+        foreach ($this->unitsByCode() as $unit) {
+            $cases = SalesCase::query()->where('unit_id', $unit->id);
 
-            if ($statuses === []) {
+            if (! (clone $cases)->exists()) {
                 continue;
             }
 
-            $status = in_array(SalesCaseStatus::Active->value, $statuses, true)
+            $hasActive = (clone $cases)
+                ->where('case_status', SalesCaseStatus::Active->value)
+                ->exists();
+            $hasCompleted = (clone $cases)
+                ->where('case_status', SalesCaseStatus::Completed->value)
+                ->exists();
+
+            $status = $hasActive
                 ? UnitStatus::Booking
-                : (in_array(SalesCaseStatus::Completed->value, $statuses, true)
-                    ? UnitStatus::Terjual
-                    : UnitStatus::Tersedia);
+                : ($hasCompleted ? UnitStatus::Terjual : UnitStatus::Tersedia);
 
             Unit::whereKey($unit->id)->update(['status' => $status->value]);
         }

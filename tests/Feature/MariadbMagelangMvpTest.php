@@ -675,6 +675,64 @@ class MariadbMagelangMvpTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $summary['anomalies']['unknown_unit'] ?? 0);
     }
 
+    public function test_unit_status_refresh_maps_active_completed_and_mundur_cases(): void
+    {
+        $branch = $this->magelangBranch();
+        $activeUnit = $this->makeUnit($branch, 'MGL-STATUS-A');
+        $completedUnit = $this->makeUnit($branch, 'MGL-STATUS-C');
+        $mundurUnit = $this->makeUnit($branch, 'MGL-STATUS-M');
+        SalesCase::factory()->forUnit($activeUnit)->create(['case_status' => SalesCaseStatus::Active]);
+        SalesCase::factory()->forUnit($completedUnit)->create(['case_status' => SalesCaseStatus::Completed]);
+        SalesCase::factory()->forUnit($mundurUnit)->create(['case_status' => SalesCaseStatus::Mundur]);
+
+        app(MagelangImporter::class, ['branch' => $branch])->refreshUnitStatuses();
+
+        $this->assertTrue($activeUnit->fresh()->status === UnitStatus::Booking);
+        $this->assertTrue($completedUnit->fresh()->status === UnitStatus::Terjual);
+        $this->assertTrue($mundurUnit->fresh()->status === UnitStatus::Tersedia);
+    }
+
+    public function test_active_case_takes_precedence_over_historical_unit_cases(): void
+    {
+        $branch = $this->magelangBranch();
+        $unit = $this->makeUnit($branch, 'MGL-STATUS-HISTORY');
+        SalesCase::factory()->forUnit($unit)->create(['case_status' => SalesCaseStatus::Completed]);
+        SalesCase::factory()->forUnit($unit)->create(['case_status' => SalesCaseStatus::Mundur]);
+        SalesCase::factory()->forUnit($unit)->create(['case_status' => SalesCaseStatus::Active]);
+
+        app(MagelangImporter::class, ['branch' => $branch])->refreshUnitStatuses();
+
+        $this->assertTrue($unit->fresh()->status === UnitStatus::Booking);
+    }
+
+    public function test_unit_status_refresh_leaves_unused_unit_unchanged(): void
+    {
+        $branch = $this->magelangBranch();
+        $unit = $this->makeUnit($branch, 'MGL-STATUS-UNUSED');
+        $unit->update(['status' => UnitStatus::Terjual]);
+
+        app(MagelangImporter::class, ['branch' => $branch])->refreshUnitStatuses();
+
+        $this->assertTrue($unit->fresh()->status === UnitStatus::Terjual);
+    }
+
+    public function test_waiting_list_case_does_not_affect_unit_status_refresh(): void
+    {
+        $branch = $this->magelangBranch();
+        $unit = $this->makeUnit($branch, 'MGL-STATUS-WAITING');
+        $project = Project::factory()->for($branch)->create();
+        SalesCase::factory()->create([
+            'unit_id' => null,
+            'project_id' => $project->id,
+            'branch_id' => $branch->id,
+            'case_status' => SalesCaseStatus::Active,
+        ]);
+
+        app(MagelangImporter::class, ['branch' => $branch])->refreshUnitStatuses();
+
+        $this->assertTrue($unit->fresh()->status === UnitStatus::Tersedia);
+    }
+
     public function test_sp3k_is_modeled_as_authoritative_bank_process(): void
     {
         $case = $this->createCase($this->hqAdmin(), $this->makeUnit(Branch::factory()->create()));
