@@ -26,6 +26,7 @@ use App\SalesCaseStage;
 use App\SalesCaseStatus;
 use App\Services\SalesCaseStageResolver;
 use App\Services\UnitStatusResolver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
@@ -446,8 +447,8 @@ final class MagelangImporter
     {
         $resolver = app(UnitStatusResolver::class);
 
-        foreach ($this->unitsByCode() as $unit) {
-            $resolver->reconcile($unit);
-        }
+        Unit::query()
+            ->whereHas('project', fn (Builder $query): Builder => $query->where('branch_id', $this->branch->id))
+            ->each(fn (Unit $unit): ?Unit => $resolver->reconcile($unit));
     }
 }

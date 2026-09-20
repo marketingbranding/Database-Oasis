@@ -116,6 +116,24 @@ class UnitStatusAvailabilityTest extends TestCase
         $this->assertSame(UnitStatus::Terjual, $other->fresh()->status);
     }
 
+    public function test_refresh_reconciles_duplicate_unit_codes_only_in_import_branch(): void
+    {
+        $branch = Branch::factory()->create();
+        $otherBranch = Branch::factory()->create();
+        $projectA = Project::factory()->for($branch)->create();
+        $projectB = Project::factory()->for($branch)->create();
+        $unitA = Unit::factory()->for($projectA)->create(['unit_code' => 'A01', 'status' => UnitStatus::Booking]);
+        $unitB = Unit::factory()->for($projectB)->create(['unit_code' => 'A01', 'status' => UnitStatus::Terjual]);
+        $otherUnit = Unit::factory()->for(Project::factory()->for($otherBranch))->create(['unit_code' => 'A01', 'status' => UnitStatus::Booking]);
+        SalesCase::factory()->forUnit($unitA)->create(['case_status' => SalesCaseStatus::Active]);
+
+        app(MagelangImporter::class, ['branch' => $branch])->refreshUnitStatuses();
+
+        $this->assertSame(UnitStatus::Booking, $unitA->fresh()->status);
+        $this->assertSame(UnitStatus::Tersedia, $unitB->fresh()->status);
+        $this->assertSame(UnitStatus::Booking, $otherUnit->fresh()->status);
+    }
+
     public function test_create_action_rejects_unavailable_unit_and_allows_waiting_list(): void
     {
         SalesCase::factory()->forUnit($this->unit)->create();
