@@ -159,8 +159,8 @@ class SalesCaseTimelineService
                 date: $process->response_date,
                 title: sprintf('Response Bank — %s', $process->bank->name),
                 descriptionLines: array_filter([
-                    $process->response_type === BankResponseType::Approved && $process->sp3k_number !== null
-                        ? sprintf('SP3K: %s (%s)', $process->sp3k_number, $process->sp3k_date?->format('d M Y') ?? '-')
+                    $process->response_type === BankResponseType::Approved && ($process->sp3k_code !== null || $process->sp3k_number !== null)
+                        ? sprintf('SP3K: %s (%s)', $process->sp3k_code ?? $process->sp3k_number, $process->sp3k_date?->format('d M Y') ?? '-')
                         : null,
                     $process->notes,
                 ]),
@@ -192,9 +192,9 @@ class SalesCaseTimelineService
                     DeveloperPpjbStatus::Active => 'PPJB Developer dibuat',
                 },
                 descriptionLines: array_filter([
-                    $ppjb->document_number !== null ? 'Nomor: '.$ppjb->document_number : null,
-                    $ppjb->bank_process_id !== null && $ppjb->bankProcess->sp3k_number !== null
-                        ? 'SP3K: '.$ppjb->bankProcess->sp3k_number
+                    ($ppjb->ppjb_code ?? $ppjb->document_number) !== null ? 'Kode PPJB: '.($ppjb->ppjb_code ?? $ppjb->document_number) : null,
+                    $ppjb->bank_process_id !== null && ($ppjb->bankProcess->sp3k_code ?? $ppjb->bankProcess->sp3k_number) !== null
+                        ? 'SP3K: '.($ppjb->bankProcess->sp3k_code ?? $ppjb->bankProcess->sp3k_number)
                         : null,
                     $ppjb->notes,
                 ]),

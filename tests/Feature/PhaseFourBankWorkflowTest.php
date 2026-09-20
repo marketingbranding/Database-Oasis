@@ -156,7 +156,10 @@ class PhaseFourBankWorkflowTest extends TestCase
         $this->assertSame($caseA->id, $processA->sales_case_id);
         $this->assertSame($caseB->id, $processB->sales_case_id);
         $this->assertNotSame($processA->id, $processB->id);
-        $this->assertSame(2, BankProcess::query()->where('sp3k_number', '123')->count());
+        $this->assertSame(0, BankProcess::query()->where('sp3k_number', '123')->count());
+        $this->assertNotNull($processA->sp3k_code);
+        $this->assertNotNull($processB->sp3k_code);
+        $this->assertNotSame($processA->sp3k_code, $processB->sp3k_code);
     }
 
     public function test_response_rejects_submission_case_and_bank_forgery(): void

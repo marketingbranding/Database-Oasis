@@ -101,7 +101,8 @@ class PhaseSixWorkspaceTest extends TestCase
 
         $this->assertSame('BRI', $case->latestSubmission->bank->name);
         $this->assertSame('APPROVED', $case->latestBankProcess->response_type->value);
-        $this->assertSame('SP3K-BRI-1', $case->currentApprovedBankProcess->sp3k_number);
+        $this->assertNull($case->currentApprovedBankProcess->sp3k_number);
+        $this->assertNotNull($case->currentApprovedBankProcess->sp3k_code);
         $this->assertNotNull($case->daysInCurrentStage());
 
         $this->actingAs($this->hq);
@@ -109,7 +110,7 @@ class PhaseSixWorkspaceTest extends TestCase
             ->assertSuccessful()
             ->assertSeeText('Bank saat ini')
             ->assertSeeText('Response terakhir')
-            ->assertSeeText('SP3K: SP3K-BRI-1');
+            ->assertSeeText('SP3K: '.$case->currentApprovedBankProcess->sp3k_code);
     }
 
     public function test_workspace_cash_summary_has_no_fake_bank_or_sp3k(): void
@@ -349,7 +350,7 @@ class PhaseSixWorkspaceTest extends TestCase
             $case->consumer->name,
             $case->consumer->nik,
             $case->unit->unit_code,
-            'SP3K-BRI-1',
+            $case->currentApprovedBankProcess->sp3k_code,
         ] as $term) {
             $results = SalesCaseResource::getGlobalSearchResults($term);
             $this->assertTrue(

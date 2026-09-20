@@ -59,7 +59,7 @@ class CreateDeveloperPpjbAction
                 /** @var DeveloperPpjb $ppjb */
                 $ppjb = DeveloperPpjb::create([
                     'sales_case_id' => $case->id, 'bank_process_id' => $bankProcessId,
-                    'document_number' => $data['document_number'] ?? null, 'document_date' => $data['document_date'],
+                    'document_number' => null, 'document_date' => $data['document_date'],
                     'status' => DeveloperPpjbStatus::Active, 'notes' => $data['notes'] ?? null, 'created_by' => $user->id,
                 ]);
             } catch (UniqueConstraintViolationException) {
@@ -69,7 +69,7 @@ class CreateDeveloperPpjbAction
             app(BusinessNumberGenerator::class)->ensurePpjbCode($ppjb);
             app(SalesCaseStageResolver::class)->reconcile($case);
 
-            return $ppjb;
+            return $ppjb->refresh();
         });
     }
 

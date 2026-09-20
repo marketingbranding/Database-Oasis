@@ -22,13 +22,16 @@ final class BusinessNumberGenerator
         }
 
         return DB::transaction(function () use ($process): string {
-            $process->refresh();
-            if ($process->sp3k_code !== null) {
-                return $process->sp3k_code;
+            $locked = BankProcess::query()->whereKey($process->id)->lockForUpdate()->firstOrFail();
+            if ($locked->sp3k_code !== null) {
+                return $locked->sp3k_code;
             }
-            $branch = $process->salesCase->branch;
-            $code = $this->next(BusinessNumberType::Sp3k, $branch, (int) $process->sp3k_date->format('Y'));
-            $process->forceFill(['sp3k_code' => $code])->save();
+            if (! $locked->is_authoritative || $locked->sp3k_date === null) {
+                throw ValidationException::withMessages(['sp3k_code' => 'SP3K canonical code requires authoritative approval and SP3K date.']);
+            }
+            $branch = $locked->salesCase->branch;
+            $code = $this->next(BusinessNumberType::Sp3k, $branch, (int) $locked->sp3k_date->format('Y'));
+            $locked->forceFill(['sp3k_code' => $code])->save();
 
             return $code;
         });
@@ -41,13 +44,13 @@ final class BusinessNumberGenerator
         }
 
         return DB::transaction(function () use ($ppjb): string {
-            $ppjb->refresh();
-            if ($ppjb->ppjb_code !== null) {
-                return $ppjb->ppjb_code;
+            $locked = DeveloperPpjb::query()->whereKey($ppjb->id)->lockForUpdate()->firstOrFail();
+            if ($locked->ppjb_code !== null) {
+                return $locked->ppjb_code;
             }
-            $branch = $ppjb->salesCase->branch;
-            $code = $this->next(BusinessNumberType::DeveloperPpjb, $branch, (int) $ppjb->document_date->format('Y'));
-            $ppjb->forceFill(['ppjb_code' => $code])->save();
+            $branch = $locked->salesCase->branch;
+            $code = $this->next(BusinessNumberType::DeveloperPpjb, $branch, (int) $locked->document_date->format('Y'));
+            $locked->forceFill(['ppjb_code' => $code])->save();
 
             return $code;
         });

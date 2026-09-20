@@ -61,8 +61,8 @@ class SalesCasesTable
                     ->label('Bank')
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('currentApprovedBankProcess.sp3k_number')
-                    ->label('SP3K')
+                TextColumn::make('currentApprovedBankProcess.sp3k_code')
+                    ->label('Kode SP3K')
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('daysInCurrentStage')

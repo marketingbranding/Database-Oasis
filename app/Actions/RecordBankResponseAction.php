@@ -83,7 +83,7 @@ class RecordBankResponseAction
                     'bank_id' => $submission->bank_id,
                     'response_type' => $responseType,
                     'response_date' => $data['response_date'],
-                    'sp3k_number' => $responseType === BankResponseType::Approved ? ($data['sp3k_number'] ?? null) : null,
+                    'sp3k_number' => null,
                     'sp3k_date' => $responseType === BankResponseType::Approved ? $data['sp3k_date'] : null,
                     'credit_limit' => $data['credit_limit'] ?? null,
                     'tenor' => $data['tenor'] ?? null,
@@ -107,7 +107,7 @@ class RecordBankResponseAction
                 app(SalesCaseStageResolver::class)->reconcile($case);
             }
 
-            return $process;
+            return $process->refresh();
         });
     }
 }

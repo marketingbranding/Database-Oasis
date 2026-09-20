@@ -16,7 +16,7 @@ class DeveloperPpjbsTable
             TextColumn::make('salesCase.project.name')->label('Proyek'), TextColumn::make('salesCase.unit.unit_code')->label('Unit')->searchable(),
             TextColumn::make('salesCase.financing_type')->label('Financing')->badge(), TextColumn::make('ppjb_code')->label('Kode PPJB')->searchable()->placeholder('-'),
             TextColumn::make('document_date')->label('Tanggal')->date()->sortable(), TextColumn::make('status')->badge(),
-            TextColumn::make('bankProcess.sp3k_number')->label('SP3K')->placeholder('-'), TextColumn::make('updated_at')->dateTime()->sortable(),
+            TextColumn::make('bankProcess.sp3k_code')->label('Kode SP3K')->placeholder('-'), TextColumn::make('updated_at')->dateTime()->sortable(),
         ])->filters([SelectFilter::make('status')->options(DeveloperPpjbStatus::class)])->defaultSort('document_date', 'desc');
     }
 }

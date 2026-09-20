@@ -34,7 +34,7 @@ class BankProcessesRelationManager extends RelationManager
             TextColumn::make('bank.name')->label('Bank'),
             TextColumn::make('response_type')->label('Response')->badge(),
             TextColumn::make('response_date')->label('Tanggal')->date(),
-            TextColumn::make('sp3k_number')->label('SP3K')->placeholder('-'),
+            TextColumn::make('sp3k_code')->label('Kode SP3K')->placeholder('-'),
             IconColumn::make('is_authoritative')->label('Authoritative')->boolean(),
         ])->headerActions([$this->recordResponseAction()])->defaultSort('response_date', 'desc');
     }

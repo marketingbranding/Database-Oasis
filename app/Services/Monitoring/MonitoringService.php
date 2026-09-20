@@ -95,7 +95,6 @@ class MonitoringService
             ->whereDoesntHave('akad')
             ->whereHas('currentApprovedBankProcess', fn (Builder $query) => $query
                 ->where('response_type', BankResponseType::Approved->value)
-                ->whereNotNull('sp3k_number')
                 ->whereNotNull('sp3k_date'));
     }
 

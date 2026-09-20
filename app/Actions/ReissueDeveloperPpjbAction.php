@@ -39,13 +39,13 @@ class ReissueDeveloperPpjbAction
             /** @var DeveloperPpjb $new */
             $new = DeveloperPpjb::create([
                 'sales_case_id' => $case->id, 'bank_process_id' => $old->bank_process_id,
-                'document_number' => $data['document_number'] ?? null, 'document_date' => $data['document_date'],
+                'document_number' => null, 'document_date' => $data['document_date'],
                 'status' => DeveloperPpjbStatus::Active, 'notes' => $data['notes'] ?? null, 'created_by' => $user->id,
             ]);
             app(BusinessNumberGenerator::class)->ensurePpjbCode($new);
             app(SalesCaseStageResolver::class)->reconcile($case);
 
-            return $new;
+            return $new->refresh();
         });
     }
 }

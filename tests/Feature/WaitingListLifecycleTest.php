@@ -57,7 +57,8 @@ class WaitingListLifecycleTest extends TestCase
 
         $this->assertNull($case->refresh()->unit_id);
         $this->assertSame(SalesCaseStatus::Active, $case->case_status);
-        $this->assertSame('SP3K-WL', $approval->sp3k_number);
+        $this->assertNull($approval->sp3k_number);
+        $this->assertNotNull($approval->sp3k_code);
         $this->assertTrue($approval->is_authoritative);
         $this->assertWaitingListPpjbRejected($case);
 

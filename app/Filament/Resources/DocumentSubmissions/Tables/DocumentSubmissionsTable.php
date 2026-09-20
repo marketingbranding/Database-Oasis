@@ -20,7 +20,7 @@ class DocumentSubmissionsTable
             TextColumn::make('sequence')->label('Submission #')->sortable(),
             TextColumn::make('submission_date')->label('Tanggal')->date()->sortable(),
             TextColumn::make('latestBankProcess.response_type')->label('Response Terakhir')->badge()->placeholder('-'),
-            TextColumn::make('latestBankProcess.sp3k_number')->label('SP3K')->searchable()->placeholder('-'),
+            TextColumn::make('latestBankProcess.sp3k_code')->label('Kode SP3K')->searchable()->placeholder('-'),
             TextColumn::make('status')->badge()->formatStateUsing(fn (DocumentSubmissionStatus $state): string => $state->getLabel()),
             TextColumn::make('updated_at')->label('Diubah')->dateTime()->sortable(),
         ])->filters([

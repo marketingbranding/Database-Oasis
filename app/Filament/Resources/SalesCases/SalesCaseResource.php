@@ -58,7 +58,7 @@ class SalesCaseResource extends Resource
             ['consumer.nik'],
             ['consumer.phone'],
             ['unit.unit_code'],
-            ['bankProcesses.sp3k_number'],
+            ['bankProcesses.sp3k_code'],
             ['psjbs.document_number'],
             ['developerPpjbs.document_number'],
             ['akad.document_number'],

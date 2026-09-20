@@ -26,7 +26,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
     {
         return $table->columns([
             TextColumn::make('ppjb_code')->label('Kode PPJB')->placeholder('-'), TextColumn::make('document_date')->label('Tanggal PPJB')->date(),
-            TextColumn::make('status')->badge(), TextColumn::make('bankProcess.sp3k_number')->label('SP3K')->placeholder('-'),
+            TextColumn::make('status')->badge(), TextColumn::make('bankProcess.sp3k_code')->label('Kode SP3K')->placeholder('-'),
         ])->headerActions([$this->createAction()])->recordActions([$this->reissueAction(), $this->cancelAction()])->defaultSort('document_date', 'desc');
     }
 
