@@ -2,8 +2,6 @@
 
 namespace App\Services\Repair;
 
-use App\Repairability;
-
 final readonly class RepairPlan
 {
     /**
@@ -24,7 +22,7 @@ final readonly class RepairPlan
         return [
             'issue' => $this->issue->toArray(),
             'action_code' => $this->actionCode,
-            'repairability' => Repairability::AutoFixable->value,
+            'repairability' => $this->issue->repairability->value,
             'before' => $this->before,
             'proposed' => $this->proposed,
             'fingerprint' => $this->fingerprint,
