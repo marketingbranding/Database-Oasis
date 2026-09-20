@@ -33,7 +33,7 @@ class SalesCasesRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('consumer.name')->label('Konsumen'),
                 TextColumn::make('financing_type')->label('Pembiayaan')->badge(),
-                TextColumn::make('current_stage')->label('Stage')->badge(),
+                TextColumn::make('current_stage')->label('Tahap')->badge(),
                 TextColumn::make('case_status')->label('Status')->badge()
                     ->icon(fn ($state): string => $state?->value === 'ACTIVE' ? 'heroicon-m-play' : 'heroicon-o-clock')
                     ->color(fn ($state): string => match ($state?->value) {

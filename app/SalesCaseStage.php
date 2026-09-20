@@ -27,7 +27,7 @@ enum SalesCaseStage: string implements HasLabel
             self::PpjbDev => 'PPJB Developer',
             self::Akad => 'Akad',
             self::Bast => 'BAST',
-            self::Completed => 'Completed',
+            self::Completed => 'Selesai',
         };
     }
 

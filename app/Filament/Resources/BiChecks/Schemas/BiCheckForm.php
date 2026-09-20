@@ -18,10 +18,10 @@ class BiCheckForm
     {
         return $schema
             ->components([
-                Section::make('Sales Case')
+                Section::make('Transaksi Penjualan')
                     ->components([
                         Select::make('sales_case_id')
-                            ->label('Sales Case')
+                            ->label('Transaksi Penjualan')
                             ->searchable()
                             ->native(false)
                             ->options(fn (): array => self::caseOptions(null))

@@ -24,7 +24,7 @@ class BastRelationManager extends RelationManager
             TextColumn::make('akad.document_number')->label('Akad'), TextColumn::make('bast_number')->label('Nomor BAST')->placeholder('-'),
             TextColumn::make('bast_date')->date(), TextColumn::make('status')->badge(),
         ])->headerActions([
-            Action::make('createBast')->label('Create BAST')->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord() instanceof SalesCase && $livewire->getOwnerRecord()->akad()->exists() && ! $livewire->getOwnerRecord()->bast()->exists() && (User::current()?->can('create', BastRecord::class) ?? false))
+            Action::make('createBast')->label('Buat BAST')->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord() instanceof SalesCase && $livewire->getOwnerRecord()->akad()->exists() && ! $livewire->getOwnerRecord()->bast()->exists() && (User::current()?->can('create', BastRecord::class) ?? false))
                 ->form([TextInput::make('bast_number')->label('Nomor BAST'), DatePicker::make('bast_date')->default(now())->required(), Textarea::make('notes')])
                 ->action(function (array $data, RelationManager $livewire): void {
                     $case = $livewire->getOwnerRecord();

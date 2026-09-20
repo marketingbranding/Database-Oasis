@@ -6,6 +6,7 @@ use App\Actions\CreateSalesCaseAction;
 use App\Actions\MarkSalesCaseMundurAction;
 use App\Actions\MoveSalesCaseUnitAction;
 use App\DeveloperPpjbStatus;
+use App\Filament\Resources\SalesCases\SalesCaseResource;
 use App\FinancingType;
 use App\Models\Bank;
 use App\Models\BankProcess;
@@ -258,6 +259,13 @@ class MariadbMagelangMvpTest extends TestCase
         $this->assertFalse(SalesCaseStatus::PindahKavling->isCurrent());
         $this->assertFalse(SalesCaseStatus::Cancelled->isCurrent());
         $this->assertTrue(SalesCaseStatus::PindahKavling->isLegacy());
+        $this->assertSame('Aktif', SalesCaseStatus::Active->getLabel());
+        $this->assertSame('Selesai', SalesCaseStatus::Completed->getLabel());
+        $this->assertSame('Mundur', SalesCaseStatus::Mundur->getLabel());
+        $this->assertSame('Ditolak', SalesCaseStatus::Reject->getLabel());
+        $this->assertSame('Selesai', SalesCaseStage::Completed->getLabel());
+        $this->assertSame('Transaksi Penjualan', SalesCaseResource::getNavigationLabel());
+        $this->assertSame('Transaksi Penjualan', SalesCaseResource::getModelLabel());
         $this->assertSame(
             [SalesCaseStatus::Active, SalesCaseStatus::Completed, SalesCaseStatus::Mundur, SalesCaseStatus::Reject],
             SalesCaseStatus::current(),

@@ -93,7 +93,7 @@ class PsjbsRelationManager extends RelationManager
     private function reissuePsjbAction(): Action
     {
         return Action::make('reissuePsjb')
-            ->label('Reissue PSJB')
+            ->label('Terbitkan Ulang PSJB')
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('warning')
             ->form($this->psjbFormFields())
@@ -127,7 +127,7 @@ class PsjbsRelationManager extends RelationManager
     private function cancelPsjbAction(): Action
     {
         return Action::make('cancelPsjb')
-            ->label('Cancel PSJB')
+            ->label('Batalkan PSJB')
             ->icon(Heroicon::OutlinedMinusCircle)
             ->color('danger')
             ->requiresConfirmation()

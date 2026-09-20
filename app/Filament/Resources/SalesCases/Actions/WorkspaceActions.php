@@ -103,7 +103,7 @@ class WorkspaceActions
     private static function addBiCheck(): Action
     {
         return Action::make('addBiCheck')
-            ->label('Add BI Check')
+            ->label('Tambah BI Checking')
             ->icon(Heroicon::OutlinedShieldCheck)
             ->color('primary')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active)
@@ -121,7 +121,7 @@ class WorkspaceActions
     private static function createPsjb(): Action
     {
         return Action::make('createPsjb')
-            ->label('Create PSJB')
+            ->label('Buat PSJB')
             ->icon(Heroicon::OutlinedDocumentText)
             ->color('primary')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
@@ -138,7 +138,7 @@ class WorkspaceActions
     private static function reissuePsjb(): Action
     {
         return Action::make('reissuePsjb')
-            ->label('Reissue PSJB')
+            ->label('Terbitkan Ulang PSJB')
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('warning')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
@@ -154,7 +154,7 @@ class WorkspaceActions
     private static function cancelPsjb(): Action
     {
         return Action::make('cancelPsjb')
-            ->label('Cancel PSJB')
+            ->label('Batalkan PSJB')
             ->icon(Heroicon::OutlinedMinusCircle)
             ->color('danger')
             ->requiresConfirmation()
@@ -197,7 +197,7 @@ class WorkspaceActions
     private static function recordBankResponse(): Action
     {
         return Action::make('recordBankResponse')
-            ->label('Record Bank Response')
+            ->label('Catat Respons Bank')
             ->icon(Heroicon::OutlinedBuildingLibrary)
             ->color('primary')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
@@ -252,7 +252,7 @@ class WorkspaceActions
     private static function createPpjbDeveloper(): Action
     {
         return Action::make('createPpjbDeveloper')
-            ->label('Create PPJB Developer')
+            ->label('Buat PPJB Developer')
             ->icon(Heroicon::OutlinedDocumentCheck)
             ->color('primary')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
@@ -272,7 +272,7 @@ class WorkspaceActions
     private static function reissuePpjbDeveloper(): Action
     {
         return Action::make('reissuePpjbDeveloper')
-            ->label('Reissue PPJB')
+            ->label('Terbitkan Ulang PPJB')
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('warning')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
@@ -288,7 +288,7 @@ class WorkspaceActions
     private static function cancelPpjbDeveloper(): Action
     {
         return Action::make('cancelPpjbDeveloper')
-            ->label('Cancel PPJB')
+            ->label('Batalkan PPJB')
             ->icon(Heroicon::OutlinedMinusCircle)
             ->color('danger')
             ->requiresConfirmation()
@@ -304,7 +304,7 @@ class WorkspaceActions
     private static function createAkad(): Action
     {
         return Action::make('createAkad')
-            ->label('Create Akad')
+            ->label('Buat Akad')
             ->icon(Heroicon::OutlinedScale)
             ->color('primary')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
@@ -326,7 +326,7 @@ class WorkspaceActions
     private static function createBast(): Action
     {
         return Action::make('createBast')
-            ->label('Create BAST')
+            ->label('Buat BAST')
             ->icon(Heroicon::OutlinedKey)
             ->color('primary')
             ->visible(fn (SalesCase $case): bool => $case->case_status === SalesCaseStatus::Active
@@ -340,14 +340,14 @@ class WorkspaceActions
             ->action(function (array $data, SalesCase $case): void {
                 $data['akad_id'] = $case->akad()->firstOrFail()->id;
                 app(CreateBastAction::class)->handle(self::user(), ['sales_case_id' => $case->id, ...$data]);
-                self::notify('BAST dibuat. Sales Case COMPLETED.');
+                self::notify('BAST dibuat. Transaksi selesai.');
             });
     }
 
     private static function updateReadiness(): Action
     {
         return Action::make('updateReadiness')
-            ->label('Update Akad Readiness')
+            ->label('Perbarui Kesiapan Akad')
             ->icon(Heroicon::OutlinedClipboardDocumentCheck)
             ->visible(fn (SalesCase $case): bool => $case->akad()->doesntExist() && self::canUpdateReadiness($case))
             ->fillForm(fn (SalesCase $case): array => $case->akadReadiness?->only([

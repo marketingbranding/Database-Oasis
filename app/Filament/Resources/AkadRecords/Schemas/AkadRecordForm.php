@@ -18,7 +18,7 @@ class AkadRecordForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Select::make('sales_case_id')->label('Sales Case')->options(fn (): array => SalesCase::pickableActiveCases(User::current())->get()->mapWithKeys(fn (SalesCase $case): array => [$case->id => "{$case->consumer?->name} — {$case->unit?->unit_code}"])->all())->live()->required(),
+            Select::make('sales_case_id')->label('Transaksi Penjualan')->options(fn (): array => SalesCase::pickableActiveCases(User::current())->get()->mapWithKeys(fn (SalesCase $case): array => [$case->id => "{$case->consumer?->name} — {$case->unit?->unit_code}"])->all())->live()->required(),
             Select::make('developer_ppjb_id')->label('PPJB Developer')->options(fn (Get $get): array => DeveloperPpjb::query()->where('sales_case_id', $get('sales_case_id'))->where('status', 'ACTIVE')->pluck('document_number', 'id')->all())->required(),
             TextInput::make('document_number')->label('Nomor Akad')->live(onBlur: true)->helperText(fn (Get $get): ?string => self::warning($get('document_number'))),
             DatePicker::make('akad_date')->label('Tanggal Akad')->default(now())->required(),

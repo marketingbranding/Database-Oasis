@@ -49,7 +49,7 @@ class BiChecksRelationManager extends RelationManager
             ->defaultSort('check_date', 'desc')
             ->headerActions([
                 Action::make('recordBiCheck')
-                    ->label('Add BI Check')
+                    ->label('Tambah BI Checking')
                     ->icon(Heroicon::OutlinedPlusCircle)
                     ->form([
                         DatePicker::make('check_date')

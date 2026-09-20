@@ -27,7 +27,7 @@ class ConsumersTable
                     ->label('Unit Aktif')
                     ->placeholder('-'),
                 TextColumn::make('activeSalesCase.current_stage')
-                    ->label('Stage')
+                    ->label('Tahap')
                     ->badge()
                     ->placeholder('-')
                     ->formatStateUsing(fn (?SalesCaseStage $state): ?string => $state?->getLabel()),

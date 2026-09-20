@@ -17,7 +17,7 @@ class DocumentSubmissionForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Select::make('sales_case_id')->label('Sales Case')->options(fn (): array => self::caseOptions())->searchable()->required()
+            Select::make('sales_case_id')->label('Transaksi Penjualan')->options(fn (): array => self::caseOptions())->searchable()->required()
                 ->exists('sales_cases', 'id', modifyRuleUsing: function (Exists $rule): Exists {
                     $user = User::current();
 

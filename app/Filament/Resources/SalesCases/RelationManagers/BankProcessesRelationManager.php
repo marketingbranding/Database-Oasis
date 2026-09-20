@@ -41,7 +41,7 @@ class BankProcessesRelationManager extends RelationManager
 
     private function recordResponseAction(): Action
     {
-        return Action::make('recordBankResponse')->label('Record Bank Response')->icon(Heroicon::OutlinedPlusCircle)
+        return Action::make('recordBankResponse')->label('Catat Respons Bank')->icon(Heroicon::OutlinedPlusCircle)
             ->visible(function (RelationManager $livewire): bool {
                 $case = $livewire->getOwnerRecord();
 

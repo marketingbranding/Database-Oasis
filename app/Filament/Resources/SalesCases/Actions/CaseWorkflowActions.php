@@ -27,7 +27,7 @@ class CaseWorkflowActions
 
     public static function reject(): Action
     {
-        return self::closeAction('markRejected', 'Reject Case', Heroicon::OutlinedXCircle, MarkRejected::class, reasonRequired: true);
+        return self::closeAction('markRejected', 'Tolak Transaksi', Heroicon::OutlinedXCircle, MarkRejected::class, reasonRequired: true);
     }
 
     public static function move(): Action
@@ -73,7 +73,7 @@ class CaseWorkflowActions
 
                 Notification::make()
                     ->title('Kavling dipindah')
-                    ->body('Unit saat ini telah diperbarui, sales case tetap aktif.')
+                    ->body('Kavling saat ini telah diperbarui, transaksi tetap aktif.')
                     ->success()
                     ->send();
             });
@@ -86,7 +86,7 @@ class CaseWorkflowActions
             ->icon($icon)
             ->color('danger')
             ->requiresConfirmation()
-            ->modalHeading("Tutup case: {$label}")
+            ->modalHeading("Tutup transaksi: {$label}")
             ->form([
                 Textarea::make('reason')
                     ->label('Alasan')
@@ -100,7 +100,7 @@ class CaseWorkflowActions
                 app($domainAction)->handle($user, $record, $data['reason'] ?? null);
 
                 Notification::make()
-                    ->title('Sales case ditutup')
+                    ->title('Transaksi ditutup')
                     ->body($label)
                     ->success()
                     ->send();

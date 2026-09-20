@@ -39,7 +39,7 @@ class DeveloperPpjbsRelationManager extends RelationManager
 
     private function createAction(): Action
     {
-        return Action::make('createPpjbDeveloper')->label('Create PPJB')->form($this->fields())->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord() instanceof SalesCase && (User::current()?->can('create', DeveloperPpjb::class) ?? false))
+        return Action::make('createPpjbDeveloper')->label('Buat PPJB Developer')->form($this->fields())->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord() instanceof SalesCase && (User::current()?->can('create', DeveloperPpjb::class) ?? false))
             ->action(function (array $data, RelationManager $livewire): void {
                 app(CreateDeveloperPpjbAction::class)->handle(User::current() ?? abort(403), ['sales_case_id' => $livewire->getOwnerRecord()->getKey(), ...$data]);
                 Notification::make()->title('PPJB Developer dibuat')->success()->send();

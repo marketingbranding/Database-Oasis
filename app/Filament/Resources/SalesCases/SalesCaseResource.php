@@ -36,11 +36,11 @@ class SalesCaseResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Operasional';
 
-    protected static ?string $navigationLabel = 'Sales Cases';
+    protected static ?string $navigationLabel = 'Transaksi Penjualan';
 
-    protected static ?string $modelLabel = 'Sales Case';
+    protected static ?string $modelLabel = 'Transaksi Penjualan';
 
-    protected static ?string $pluralModelLabel = 'Sales Cases';
+    protected static ?string $pluralModelLabel = 'Transaksi Penjualan';
 
     protected static ?int $navigationSort = 1;
 
@@ -72,7 +72,7 @@ class SalesCaseResource extends Resource
             return (string) $record->getKey();
         }
 
-        return sprintf('%s — %s', $record->consumer->name, $record->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling');
+        return sprintf('%s — %s', $record->consumer->name, $record->unit?->unit_code ?? 'Belum Ada Kavling (Waiting List)');
     }
 
     /** @return array<string, string> */
@@ -85,8 +85,8 @@ class SalesCaseResource extends Resource
         return [
             'Konsumen' => $record->consumer->name,
             'Proyek' => $record->project->name,
-            'Unit' => $record->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling',
-            'Stage' => $record->current_stage->getLabel(),
+            'Unit' => $record->unit?->unit_code ?? 'Belum Ada Kavling (Waiting List)',
+            'Tahap' => $record->current_stage->getLabel(),
             'Status' => $record->case_status->getLabel(),
         ];
     }

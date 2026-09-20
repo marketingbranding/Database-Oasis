@@ -40,7 +40,7 @@ class SalesCaseInfolist
                     ->schema([
                         TextEntry::make('branch.name')->label('Cabang'),
                         TextEntry::make('project.name')->label('Proyek'),
-                        TextEntry::make('unit.unit_code')->label('Unit / Kavling')->placeholder('Waiting List / Belum Ada Kavling'),
+                        TextEntry::make('unit.unit_code')->label('Unit / Kavling')->placeholder('Belum Ada Kavling (Waiting List)'),
                     ]),
                 Section::make('Transaksi')
                     ->columns(3)
@@ -51,14 +51,14 @@ class SalesCaseInfolist
                         TextEntry::make('salesPic.name')->label('PIC Sales')->placeholder('-'),
                         TextEntry::make('coordinator.name')->label('Koordinator')->placeholder('-'),
                         TextEntry::make('booking_date')->label('Tanggal Booking')->date()->placeholder('-'),
-                        TextEntry::make('current_stage')->label('Stage')
+                        TextEntry::make('current_stage')->label('Tahap')
                             ->badge()
                             ->formatStateUsing(fn (SalesCaseStage $state): string => $state->getLabel()),
                         TextEntry::make('case_status')->label('Status')
                             ->badge()
                             ->formatStateUsing(fn (SalesCaseStatus $state): string => $state->getLabel()),
                     ]),
-                Section::make('Akad Readiness')
+                Section::make('Kesiapan Akad')
                     ->columns(4)
                     ->schema([
                         TextEntry::make('akadReadiness.building_progress')->label('Progress Bangunan')->suffix('%')->placeholder('-'),

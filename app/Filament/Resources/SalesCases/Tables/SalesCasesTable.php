@@ -35,7 +35,7 @@ class SalesCasesTable
                     ->sortable(),
                 TextColumn::make('unit.unit_code')
                     ->label('Unit')
-                    ->placeholder('Waiting List / Belum Ada Kavling')
+                    ->placeholder('Belum Ada Kavling (Waiting List)')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('financing_type')
@@ -44,7 +44,7 @@ class SalesCasesTable
                     ->formatStateUsing(fn (FinancingType $state): string => $state->getLabel())
                     ->sortable(),
                 TextColumn::make('current_stage')
-                    ->label('Stage')
+                    ->label('Tahap')
                     ->badge()
                     ->formatStateUsing(fn (SalesCaseStage $state): string => $state->getLabel())
                     ->sortable(),
@@ -66,7 +66,7 @@ class SalesCasesTable
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('daysInCurrentStage')
-                    ->label('Hari di Stage')
+                    ->label('Hari di Tahap')
                     ->state(fn ($record): string => $record->daysInCurrentStage() === null
                         ? '-'
                         : $record->daysInCurrentStage().' hari'),
@@ -97,7 +97,7 @@ class SalesCasesTable
                     ->label('Status')
                     ->options(collect(SalesCaseStatus::current())->mapWithKeys(fn (SalesCaseStatus $status): array => [$status->value => $status->getLabel()])->all()),
                 SelectFilter::make('current_stage')
-                    ->label('Stage')
+                    ->label('Tahap')
                     ->options(SalesCaseStage::class),
             ])
             ->recordActions([

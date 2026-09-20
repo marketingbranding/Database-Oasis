@@ -34,7 +34,7 @@ class SalesCasesRelationManager extends RelationManager
                 TextColumn::make('project.name')->label('Proyek'),
                 TextColumn::make('unit.unit_code')->label('Unit'),
                 TextColumn::make('financing_type')->label('Pembiayaan')->badge(),
-                TextColumn::make('current_stage')->label('Stage')->badge(),
+                TextColumn::make('current_stage')->label('Tahap')->badge(),
                 TextColumn::make('case_status')->label('Status')->badge()
                     ->color(fn ($state): string => match ($state?->value) {
                         'ACTIVE' => 'success',

@@ -26,12 +26,12 @@ enum SalesCaseStatus: string implements HasLabel
     public function getLabel(): string
     {
         return match ($this) {
-            self::Active => 'Active',
-            self::Completed => 'Completed',
+            self::Active => 'Aktif',
+            self::Completed => 'Selesai',
             self::Mundur => 'Mundur',
-            self::Reject => 'Reject',
+            self::Reject => 'Ditolak',
             self::PindahKavling => 'Pindah Kavling',
-            self::Cancelled => 'Cancelled',
+            self::Cancelled => 'Dibatalkan',
         };
     }
 
