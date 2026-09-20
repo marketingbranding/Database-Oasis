@@ -187,7 +187,7 @@ class ReconcileCanonicalStateTest extends TestCase
         $deletedPpjb->delete();
 
         $bankCase = SalesCase::factory()->create(['branch_id' => $branchA->id, 'financing_type' => FinancingType::KprSubsidi]);
-        BankProcess::factory()->create(['sales_case_id' => $bankCase->id, 'is_authoritative' => true, 'sp3k_number' => null, 'sp3k_date' => null]);
+        BankProcess::factory()->create(['sales_case_id' => $bankCase->id, 'document_submission_id' => null, 'is_authoritative' => true, 'sp3k_number' => null, 'sp3k_date' => null]);
 
         Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branchA->id, '--json' => true]);
         $payload = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
@@ -201,6 +201,27 @@ class ReconcileCanonicalStateTest extends TestCase
         $this->assertSame($projectA->id, $mismatch->refresh()->project_id);
         $this->assertSame($unitB->id, $mismatch->unit_id);
         $this->assertNull($bankCase->bankProcesses()->firstOrFail()->sp3k_number);
+    }
+
+    public function test_bank_process_with_null_submission_is_reported_even_when_case_has_submission(): void
+    {
+        $this->seed();
+        $branch = Branch::factory()->create();
+        $case = SalesCase::factory()->create(['branch_id' => $branch->id]);
+        $submission = DocumentSubmission::factory()->create(['sales_case_id' => $case->id]);
+        $process = BankProcess::factory()->create(['sales_case_id' => $case->id, 'document_submission_id' => null]);
+        $stage = $case->current_stage;
+
+        Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--json' => true]);
+        $first = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+        Artisan::call('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--json' => true]);
+        $second = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame(1, $first['anomalies']['counts']['bank_process_without_submission']);
+        $this->assertSame($first['anomalies'], $second['anomalies']);
+        $this->assertSame($stage, $case->refresh()->current_stage);
+        $this->assertSame($submission->id, $submission->refresh()->id);
+        $this->assertNull($process->refresh()->document_submission_id);
     }
 
     public function test_database_guards_prevent_multiple_authoritative_bank_processes(): void
