@@ -20,14 +20,14 @@ class ReconcileCanonicalStateTest extends TestCase
         $this->seed();
         $branch = Branch::factory()->create();
         $project = Project::factory()->for($branch)->create();
-        $unit = Unit::factory()->for($project)->create(['status' => UnitStatus::Booking]);
+        $unit = Unit::factory()->for($project)->create(['status' => UnitStatus::Tersedia]);
         $case = SalesCase::factory()->forUnit($unit)->create(['current_stage' => SalesCaseStage::DataKonsumen]);
 
         $this->artisan('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id])
             ->assertExitCode(0)
             ->expectsOutputToContain('DRY RUN');
         $this->assertSame(SalesCaseStage::DataKonsumen, $case->refresh()->current_stage);
-        $this->assertSame(UnitStatus::Booking, $unit->fresh()->status);
+        $this->assertSame(UnitStatus::Tersedia, $unit->fresh()->status);
 
         $this->artisan('oasis:reconcile-canonical-state', ['--branch-id' => $branch->id, '--apply' => true])->assertExitCode(0);
         $this->assertSame(SalesCaseStage::BiChecking, $case->refresh()->current_stage);

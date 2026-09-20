@@ -13,7 +13,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
-#[Signature('oasis:reconcile-canonical-state {--branch-id= : Reconcile one branch only} {--apply : Persist derived-state changes} {--json : Emit machine-readable summary}')]
+#[Signature('oasis:reconcile-canonical-state {--branch-id= : Reconcile one branch only} {--apply : Persist derived-state changes} {--json : Emit machine-readable summary} {--force-production : Explicitly allow APPLY in production}')]
 #[Description('Inspect or apply canonical SalesCase stages and Unit statuses for one branch.')]
 class ReconcileCanonicalState extends Command
 {
@@ -33,7 +33,21 @@ class ReconcileCanonicalState extends Command
         }
 
         $apply = (bool) $this->option('apply');
+        $environment = (string) app()->environment();
+        $connection = (string) config('database.default');
+        $database = (string) config("database.connections.{$connection}.database");
+
+        if ($apply && $environment === 'production' && ! $this->option('force-production')) {
+            return $this->failCommand($json, 'Production APPLY requires --force-production.');
+        }
+
         $summary = $this->scan($branch, $stageResolver, $unitResolver, $apply);
+        $summary['context'] = [
+            'environment' => $environment,
+            'database_connection' => $connection,
+            'database_name' => $database,
+            'mode' => $summary['mode'],
+        ];
 
         if ($json) {
             $this->line(json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -58,7 +72,7 @@ class ReconcileCanonicalState extends Command
         ];
 
         DB::transaction(function () use (&$summary, $branch, $stageResolver, $unitResolver, $apply): void {
-            SalesCase::query()->where('branch_id', $branch->id)->with(['project', 'unit'])->each(function (SalesCase $case) use (&$summary, $stageResolver, $apply): void {
+            SalesCase::query()->where('branch_id', $branch->id)->orderBy('id')->when($apply, fn (Builder $query): Builder => $query->lockForUpdate())->with(['project', 'unit'])->each(function (SalesCase $case) use (&$summary, $stageResolver, $apply): void {
                 $summary['sales_cases']['scanned']++;
                 $expected = $stageResolver->resolve($case);
                 $actual = $case->current_stage;
@@ -76,9 +90,14 @@ class ReconcileCanonicalState extends Command
                 $this->detectAnomalies($case, $summary);
             });
 
-            Unit::query()->whereHas('project', fn (Builder $query): Builder => $query->where('branch_id', $branch->id))->each(function (Unit $unit) use (&$summary, $unitResolver, $apply): void {
+            Unit::query()->whereHas('project', fn (Builder $query): Builder => $query->where('branch_id', $branch->id))->orderBy('id')->when($apply, fn (Builder $query): Builder => $query->lockForUpdate())->each(function (Unit $unit) use (&$summary, $unitResolver, $apply): void {
                 $summary['units']['scanned']++;
                 $expected = $unitResolver->resolve($unit);
+                if ($unit->salesCases()->whereHas('akad')->exists() && $expected->value !== 'TERJUAL') {
+                    $summary['anomalies']['total']++;
+                    $summary['anomalies']['counts']['unit_akad_status_mismatch'] = ($summary['anomalies']['counts']['unit_akad_status_mismatch'] ?? 0) + 1;
+                    $summary['anomalies']['items'][] = ['type' => 'unit_akad_status_mismatch', 'unit_id' => $unit->id, 'unit_code' => $unit->unit_code, 'detail' => 'Unit has Akad evidence but resolver does not produce TERJUAL.'];
+                }
                 if ($unit->status === $expected) {
                     $summary['units']['canonical']++;
                 } else {
@@ -92,6 +111,11 @@ class ReconcileCanonicalState extends Command
                 }
             });
         });
+
+        ksort($summary['stage_transitions']);
+        ksort($summary['unit_status_transitions']);
+        ksort($summary['anomalies']['counts']);
+        usort($summary['anomalies']['items'], fn (array $a, array $b): int => [$a['type'], $a['sales_case_id'] ?? '', $a['unit_id'] ?? ''] <=> [$b['type'], $b['sales_case_id'] ?? '', $b['unit_id'] ?? '']);
 
         return $summary;
     }
@@ -129,16 +153,31 @@ class ReconcileCanonicalState extends Command
         if ($case->unit_id !== null && SalesCase::query()->where('unit_id', $case->unit_id)->where('case_status', 'ACTIVE')->count() > 1) {
             $add('multiple_active_unit_owners', 'More than one ACTIVE SalesCase points to Unit.');
         }
+        if ($case->bankProcesses()->where('is_authoritative', true)->where(function (Builder $query): void {
+            $query->whereNull('sp3k_number')->orWhereNull('sp3k_date');
+        })->exists()) {
+            $add('authoritative_sp3k_incomplete', 'Authoritative BankProcess has incomplete SP3K data.');
+        }
+        if ($case->bankProcesses()->where('is_authoritative', true)->count() > 1) {
+            $add('multiple_authoritative_bank_processes', 'More than one authoritative BankProcess exists.');
+        }
     }
 
     /** @param array<string, mixed> $summary */
     private function renderSummary(array $summary): void
     {
         $this->line('MODE: '.$summary['mode']);
+        $this->line('ENVIRONMENT: '.$summary['context']['environment']);
+        $this->line('DATABASE: '.$summary['context']['database_connection'].' / '.$summary['context']['database_name']);
         $this->line('BRANCH: '.$summary['branch']['id'].' — '.$summary['branch']['name']);
         $this->line('SALES CASES: '.json_encode($summary['sales_cases']));
         $this->line('UNITS: '.json_encode($summary['units']));
-        $this->line('ANOMALIES: '.$summary['anomalies']['total']);
+        $this->line('STAGE TRANSITIONS: '.json_encode($summary['stage_transitions']));
+        $this->line('UNIT STATUS TRANSITIONS: '.json_encode($summary['unit_status_transitions']));
+        $this->line('ANOMALY COUNTS: '.json_encode($summary['anomalies']['counts']));
+        foreach ($summary['anomalies']['items'] as $item) {
+            $this->line('ANOMALY: '.json_encode($item, JSON_UNESCAPED_SLASHES));
+        }
     }
 
     private function failCommand(bool $json, string $message): int
