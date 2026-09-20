@@ -19,12 +19,25 @@ class AkadRecordForm
     {
         return $schema->components([
             Select::make('sales_case_id')->label('Transaksi Penjualan')->options(fn (): array => SalesCase::pickableActiveCases(User::current())->get()->mapWithKeys(fn (SalesCase $case): array => [$case->id => "{$case->consumer?->name} — {$case->unit?->unit_code}"])->all())->live()->required(),
-            Select::make('developer_ppjb_id')->label('PPJB Developer')->options(fn (Get $get): array => DeveloperPpjb::query()->where('sales_case_id', $get('sales_case_id'))->where('status', 'ACTIVE')->pluck('ppjb_code', 'id')->all())->required(),
+            Select::make('developer_ppjb_id')->label('PPJB Developer')->options(fn (Get $get): array => DeveloperPpjb::query()->where('sales_case_id', $get('sales_case_id'))->where('status', 'ACTIVE')->get()->mapWithKeys(fn (DeveloperPpjb $ppjb): array => [$ppjb->id => self::ppjbLabel($ppjb)])->all())->required(),
             TextInput::make('document_number')->label('Nomor Akad')->live(onBlur: true)->helperText(fn (Get $get): ?string => self::warning($get('document_number'))),
             DatePicker::make('akad_date')->label('Tanggal Akad')->default(now())->required(),
             TextInput::make('akad_quality')->label('Kualitas Akad'),
             Textarea::make('notes')->label('Catatan'),
         ]);
+    }
+
+    public static function ppjbLabel(DeveloperPpjb $ppjb): string
+    {
+        if ($ppjb->ppjb_code !== null) {
+            return $ppjb->ppjb_code;
+        }
+
+        if ($ppjb->document_number !== null) {
+            return 'Legacy: '.$ppjb->document_number;
+        }
+
+        return sprintf('PPJB %s — %s', $ppjb->document_date->format('d M Y'), $ppjb->id);
     }
 
     private static function warning(mixed $number): ?string

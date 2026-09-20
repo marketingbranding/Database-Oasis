@@ -159,9 +159,11 @@ class SalesCaseTimelineService
                 date: $process->response_date,
                 title: sprintf('Response Bank — %s', $process->bank->name),
                 descriptionLines: array_filter([
-                    $process->response_type === BankResponseType::Approved && ($process->sp3k_code !== null || $process->sp3k_number !== null)
-                        ? sprintf('SP3K: %s (%s)', $process->sp3k_code ?? $process->sp3k_number, $process->sp3k_date?->format('d M Y') ?? '-')
-                        : null,
+                    $process->response_type === BankResponseType::Approved && $process->sp3k_code !== null
+                        ? sprintf('Kode SP3K: %s (%s)', $process->sp3k_code, $process->sp3k_date?->format('d M Y') ?? '-')
+                        : ($process->response_type === BankResponseType::Approved && $process->sp3k_number !== null
+                            ? sprintf('Referensi SP3K Legacy: %s (%s)', $process->sp3k_number, $process->sp3k_date?->format('d M Y') ?? '-')
+                            : null),
                     $process->notes,
                 ]),
                 status: $process->response_type->getLabel(),
@@ -192,10 +194,14 @@ class SalesCaseTimelineService
                     DeveloperPpjbStatus::Active => 'PPJB Developer dibuat',
                 },
                 descriptionLines: array_filter([
-                    ($ppjb->ppjb_code ?? $ppjb->document_number) !== null ? 'Kode PPJB: '.($ppjb->ppjb_code ?? $ppjb->document_number) : null,
-                    $ppjb->bank_process_id !== null && ($ppjb->bankProcess->sp3k_code ?? $ppjb->bankProcess->sp3k_number) !== null
-                        ? 'SP3K: '.($ppjb->bankProcess->sp3k_code ?? $ppjb->bankProcess->sp3k_number)
-                        : null,
+                    $ppjb->ppjb_code !== null
+                        ? 'Kode PPJB: '.$ppjb->ppjb_code
+                        : ($ppjb->document_number !== null ? 'Referensi PPJB Legacy: '.$ppjb->document_number : null),
+                    $ppjb->bank_process_id !== null && $ppjb->bankProcess->sp3k_code !== null
+                        ? 'Kode SP3K: '.$ppjb->bankProcess->sp3k_code
+                        : ($ppjb->bank_process_id !== null && $ppjb->bankProcess->sp3k_number !== null
+                            ? 'Referensi SP3K Legacy: '.$ppjb->bankProcess->sp3k_number
+                            : null),
                     $ppjb->notes,
                 ]),
                 status: $ppjb->status->getLabel(),
@@ -226,9 +232,11 @@ class SalesCaseTimelineService
             descriptionLines: array_filter([
                 $akad->document_number !== null ? 'Nomor: '.$akad->document_number : null,
                 $akad->akad_quality !== null ? 'Kualitas: '.$akad->akad_quality : null,
-                $akad->developerPpjb !== null && $akad->developerPpjb->document_number !== null
-                    ? 'PPJB: '.$akad->developerPpjb->document_number
-                    : null,
+                $akad->developerPpjb?->ppjb_code !== null
+                    ? 'Kode PPJB: '.$akad->developerPpjb->ppjb_code
+                    : ($akad->developerPpjb?->document_number !== null
+                        ? 'Referensi PPJB Legacy: '.$akad->developerPpjb->document_number
+                        : null),
                 'Unit menjadi TERJUAL.',
             ]),
             actor: $akad->createdBy?->name,
