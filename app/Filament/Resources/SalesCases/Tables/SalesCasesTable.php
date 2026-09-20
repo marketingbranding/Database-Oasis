@@ -35,6 +35,7 @@ class SalesCasesTable
                     ->sortable(),
                 TextColumn::make('unit.unit_code')
                     ->label('Unit')
+                    ->placeholder('Waiting List / Belum Ada Kavling')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('financing_type')

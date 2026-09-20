@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Models\Consumer;
+use App\Models\Project;
 use App\Models\SalesCase;
 use App\Models\Unit;
 use App\Models\User;
@@ -24,17 +25,17 @@ class CreateSalesCaseAction
         Gate::forUser($user)->authorize('create', SalesCase::class);
 
         return DB::transaction(function () use ($user, $data): SalesCase {
-            /** @var Unit $unit */
-            $unit = Unit::with('project')->whereKey($data['unit_id'] ?? null)->lockForUpdate()->firstOrFail();
+            /** @var Unit|null $unit */
+            $unit = filled($data['unit_id'] ?? null)
+                ? Unit::whereKey($data['unit_id'])->lockForUpdate()->firstOrFail()
+                : null;
+            /** @var Project $project */
+            $project = Project::whereKey($unit?->project_id ?? ($data['project_id'] ?? null))->firstOrFail();
 
-            $branchId = $unit->project->branch_id;
+            $branchId = $project->branch_id;
 
             if ($user->isBranchScoped() && ! $user->belongsToBranch($branchId)) {
-                throw ValidationException::withMessages(['unit_id' => 'Unit berada di luar cabang Anda.']);
-            }
-
-            if ($unit->activeSalesCase()->exists()) {
-                throw ValidationException::withMessages(['unit_id' => 'Unit sudah memiliki sales case aktif.']);
+                throw ValidationException::withMessages(['project_id' => 'Project berada di luar cabang Anda.']);
             }
 
             // One consumer may hold several ACTIVE sales cases (one
@@ -46,8 +47,8 @@ class CreateSalesCaseAction
                 /** @var SalesCase $case */
                 $case = SalesCase::create([
                     'consumer_id' => $consumer->id,
-                    'unit_id' => $unit->id,
-                    'project_id' => $unit->project_id,
+                    'unit_id' => $unit?->id,
+                    'project_id' => $project->id,
                     'branch_id' => $branchId,
                     'financing_type' => $data['financing_type'] ?? null,
                     'booking_date' => $data['booking_date'] ?? null,
@@ -59,11 +60,10 @@ class CreateSalesCaseAction
                     'created_by' => $user->id,
                 ]);
             } catch (UniqueConstraintViolationException) {
-                // A concurrent transaction created an ACTIVE case for this unit first.
                 throw ValidationException::withMessages(['unit_id' => 'Unit sudah memiliki sales case aktif.']);
             }
 
-            $unit->update(['status' => UnitStatus::Booking]);
+            $unit?->update(['status' => UnitStatus::Booking]);
 
             return $case;
         });

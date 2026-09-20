@@ -371,17 +371,18 @@ class MariadbMagelangMvpTest extends TestCase
     public function test_magelang_import_reports_unknown_unit_without_losing_other_rows(): void
     {
         $branch = $this->magelangBranch();
-        $this->makeUnit($branch, 'MGL-D1');
+        $knownUnit = $this->makeUnit($branch, 'MGL-D1');
+        $knownUnit->project->update(['code' => 'PRJ-MGL-KAL']);
 
         $report = app(MagelangImporter::class, ['branch' => $branch])->import([
-            ['id_transaksi_v2' => 'MGL-030', 'nik' => '3374010101900003', 'name' => 'Unit Hilang', 'unit_code' => 'MGL-XX', 'financing_type' => 'KPR', 'status' => 'AKTIF'],
+            ['id_transaksi_v2' => 'MGL-030', 'nik' => '3374010101900003', 'name' => 'Unit Hilang', 'project_code' => 'PRJ-MGL-KAL', 'unit_code' => 'MGL-XX', 'financing_type' => 'KPR', 'status' => 'AKTIF'],
             ['id_transaksi_v2' => 'MGL-031', 'nik' => '3374010101900004', 'name' => 'Unit Ada', 'unit_code' => 'MGL-D1', 'financing_type' => 'KPR', 'status' => 'AKTIF'],
         ]);
 
-        $this->assertCount(1, $report['imported']);
-        $this->assertCount(1, $report['failed']);
-        $this->assertSame('MGL-030', $report['failed'][0]['source_id']);
-        $this->assertSame(1, SalesCase::query()->count());
+        $this->assertCount(2, $report['imported']);
+        $this->assertCount(0, $report['failed']);
+        $this->assertSame(2, SalesCase::query()->count());
+        $this->assertNull(SalesCase::query()->where('import_source_id', 'MGL-030')->firstOrFail()->unit_id);
     }
 
     public function test_magelang_import_full_kpr_chain_and_cash_bank_difference(): void
@@ -612,6 +613,48 @@ class MariadbMagelangMvpTest extends TestCase
         $this->assertNull($process->sp3k_date);
         $this->assertTrue($process->legacy_date_missing);
         $this->assertTrue($case->needs_review);
+    }
+
+    public function test_active_waiting_list_cases_can_coexist_without_units(): void
+    {
+        $branch = $this->magelangBranch();
+        $project = Project::factory()->for($branch)->create();
+
+        $first = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $project->id, 'branch_id' => $branch->id]);
+        $second = SalesCase::factory()->create(['unit_id' => null, 'project_id' => $project->id, 'branch_id' => $branch->id]);
+
+        $this->assertTrue($first->case_status === SalesCaseStatus::Active);
+        $this->assertNull($first->unit_id);
+        $this->assertNull($second->unit_id);
+        $this->assertSame(2, SalesCase::query()->whereNull('unit_id')->active()->count());
+    }
+
+    public function test_magelang_import_preserves_waiting_list_project_and_serial_dates(): void
+    {
+        $branch = $this->magelangBranch();
+        $project = Project::factory()->for($branch)->create(['code' => 'PRJ-MGL-KAL']);
+
+        $report = app(MagelangImporter::class, ['branch' => $branch])->import([[
+            'id_transaksi_v2' => 'MGL-WAITING-1',
+            'nik' => '3374010101900018',
+            'name' => 'Waiting List',
+            'project_code' => 'PRJ-MGL-KAL',
+            'unit_code' => null,
+            'financing_type' => 'KPR',
+            'status' => 'AKTIF',
+            'booking_date' => 46268,
+            'psjb_date' => '2026-09-04',
+        ]]);
+        $case = SalesCase::query()->where('import_source_id', 'MGL-WAITING-1')->firstOrFail();
+
+        $this->assertCount(1, $report['imported']);
+        $this->assertCount(0, $report['failed']);
+        $this->assertNull($case->unit_id);
+        $this->assertSame($project->id, $case->project_id);
+        $this->assertSame('2026-09-03', $case->booking_date?->toDateString());
+        $this->assertSame('2026-09-04', $case->activePsjb?->psjb_date?->toDateString());
+        $this->assertTrue($case->needs_review);
+        $this->assertStringContainsString('waiting_list_no_unit', (string) $case->needs_review_reason);
     }
 
     public function test_magelang_profile_counts_anomalies_without_writing(): void

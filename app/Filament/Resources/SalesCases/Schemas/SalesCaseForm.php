@@ -59,14 +59,28 @@ class SalesCaseForm
                 Section::make('Unit')
                     ->visible(fn (string $operation): bool => $operation === 'create')
                     ->components([
+                        Select::make('project_id')
+                            ->label('Project')
+                            ->relationship(
+                                'project',
+                                'name',
+                                modifyQueryUsing: fn (Builder $query): Builder => $query->when(
+                                    User::current()?->isBranchScoped(),
+                                    fn (Builder $query): Builder => $query->where('branch_id', User::current()?->branch_id),
+                                ),
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->required(fn (Get $get): bool => blank($get('unit_id'))),
                         Select::make('unit_id')
                             ->label('Unit / Kavling')
+                            ->placeholder('Belum ada kavling / Waiting List')
                             ->searchable()
                             ->native(false)
-                            ->options(fn (): array => self::unitOptions(null))
-                            ->getSearchResultsUsing(fn (string $search): array => self::unitOptions($search))
+                            ->options(fn (Get $get): array => self::unitOptions(null, $get('project_id')))
+                            ->getSearchResultsUsing(fn (string $search, Get $get): array => self::unitOptions($search, $get('project_id')))
                             ->getOptionLabelUsing(fn ($value): ?string => self::unitLabel($value))
-                            ->required()
                             ->exists(
                                 'units',
                                 'id',
@@ -151,13 +165,14 @@ class SalesCaseForm
     /**
      * @return array<string, string>
      */
-    private static function unitOptions(?string $search): array
+    private static function unitOptions(?string $search, ?string $projectId = null): array
     {
         $user = User::current();
 
         $units = Unit::query()
             ->with('project')
             ->whereDoesntHave('activeSalesCase')
+            ->when(filled($projectId), fn (Builder $query) => $query->where('project_id', $projectId))
             ->when(filled($search), fn (Builder $query) => $query->where(
                 fn (Builder $query) => $query
                     ->where('unit_code', 'like', "%{$search}%")

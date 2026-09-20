@@ -150,6 +150,28 @@ class PhaseTwoCaseWorkflowTest extends TestCase
         $this->assertStringContainsString($newUnit->unit_code, $note->note);
     }
 
+    public function test_waiting_list_case_can_be_assigned_a_unit_in_place(): void
+    {
+        $user = $this->hqAdmin();
+        $branch = Branch::factory()->create();
+        $project = Project::factory()->for($branch)->create();
+        $case = app(CreateSalesCaseAction::class)->handle($user, [
+            'project_id' => $project->id,
+            'unit_id' => null,
+            'financing_type' => FinancingType::KprSubsidi,
+            'consumer_id' => Consumer::factory()->create()->id,
+        ]);
+        $newUnit = Unit::factory()->for($project)->create();
+
+        $assigned = app(MoveSalesCaseUnitAction::class)->handle($user, $case, $newUnit->id, 'Unit tersedia');
+
+        $this->assertSame($case->id, $assigned->id);
+        $this->assertTrue($assigned->case_status === SalesCaseStatus::Active);
+        $this->assertSame($newUnit->id, $assigned->unit_id);
+        $this->assertSame(UnitStatus::Booking->value, $newUnit->fresh()->status->value);
+        $this->assertStringContainsString("Penempatan kavling ke {$newUnit->unit_code}", $assigned->caseNotes()->firstOrFail()->note);
+    }
+
     public function test_pindah_kavling_rejects_non_active_case(): void
     {
         $user = $this->hqAdmin();

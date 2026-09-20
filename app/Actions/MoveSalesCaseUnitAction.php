@@ -46,7 +46,7 @@ class MoveSalesCaseUnitAction
                 ->lockForUpdate()
                 ->get();
 
-            /** @var Unit $oldUnit */
+            /** @var Unit|null $oldUnit */
             $oldUnit = $units->firstWhere('id', $case->unit_id);
             /** @var Unit|null $newUnit */
             $newUnit = $units->firstWhere('id', $newUnitId);
@@ -73,7 +73,7 @@ class MoveSalesCaseUnitAction
                 throw ValidationException::withMessages(['new_unit_id' => 'Unit baru sudah memiliki sales case aktif.']);
             }
 
-            $oldUnitCode = $oldUnit->unit_code;
+            $oldUnitCode = $oldUnit?->unit_code;
 
             $case->update([
                 'unit_id' => $newUnit->id,
@@ -81,12 +81,17 @@ class MoveSalesCaseUnitAction
                 'transfer_reason' => $transferReason,
             ]);
 
-            Unit::whereKey($oldUnit->id)->update(['status' => UnitStatus::Tersedia->value]);
+            if ($oldUnit !== null) {
+                Unit::whereKey($oldUnit->id)->update(['status' => UnitStatus::Tersedia->value]);
+            }
+
             Unit::whereKey($newUnit->id)->update(['status' => UnitStatus::Booking->value]);
 
             CaseNote::create([
                 'sales_case_id' => $case->id,
-                'note' => "Pindah kavling dari {$oldUnitCode} ke {$newUnit->unit_code}: {$transferReason}",
+                'note' => $oldUnitCode === null
+                    ? "Penempatan kavling ke {$newUnit->unit_code}: {$transferReason}"
+                    : "Pindah kavling dari {$oldUnitCode} ke {$newUnit->unit_code}: {$transferReason}",
                 'created_by' => $user->id,
             ]);
 

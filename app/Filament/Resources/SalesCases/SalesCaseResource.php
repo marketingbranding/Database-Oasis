@@ -72,7 +72,7 @@ class SalesCaseResource extends Resource
             return (string) $record->getKey();
         }
 
-        return sprintf('%s — %s', $record->consumer->name, $record->unit->unit_code);
+        return sprintf('%s — %s', $record->consumer->name, $record->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling');
     }
 
     /** @return array<string, string> */
@@ -85,7 +85,7 @@ class SalesCaseResource extends Resource
         return [
             'Konsumen' => $record->consumer->name,
             'Proyek' => $record->project->name,
-            'Unit' => $record->unit->unit_code,
+            'Unit' => $record->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling',
             'Stage' => $record->current_stage->getLabel(),
             'Status' => $record->case_status->getLabel(),
         ];

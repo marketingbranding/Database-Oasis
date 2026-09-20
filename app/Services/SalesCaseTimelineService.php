@@ -59,7 +59,7 @@ class SalesCaseTimelineService
         if ($case->previousCase !== null) {
             $lines[] = sprintf(
                 'Pindahan dari unit %s (%s).',
-                $case->previousCase->unit->unit_code,
+                $case->previousCase->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling',
                 $case->previousCase->case_status->getLabel(),
             );
         }
@@ -287,7 +287,7 @@ class SalesCaseTimelineService
         $lines = array_filter([
             $case->closed_reason,
             $case->successorCase !== null
-                ? sprintf('Pindah kavling ke unit %s.', $case->successorCase->unit->unit_code)
+                ? sprintf('Pindah kavling ke unit %s.', $case->successorCase->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling')
                 : null,
         ]);
 

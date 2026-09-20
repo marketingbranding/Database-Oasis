@@ -29,6 +29,7 @@ final readonly class MagelangSalesCaseRow
         public ?string $address,
         public ?string $occupation,
         public ?string $unitCode,
+        public ?string $projectCode,
         public FinancingType $financingType,
         public SalesCaseStatus $status,
         public ?string $bookingDate,
@@ -123,6 +124,7 @@ final readonly class MagelangSalesCaseRow
             address: $text('address'),
             occupation: $text('occupation'),
             unitCode: $text('unit_code') ?? $text('unitCode'),
+            projectCode: $text('project_code') ?? $text('projectCode') ?? $text('project_id_source'),
             financingType: $financing ?? FinancingType::KprSubsidi,
             status: $status,
             bookingDate: $date('booking_date') ?? $date('bookingDate'),
@@ -202,6 +204,16 @@ final readonly class MagelangSalesCaseRow
 
         if ($text === null) {
             return null;
+        }
+
+        if (is_numeric($text)) {
+            $serial = (int) $text;
+
+            if ((string) $serial !== $text || $serial < 1 || $serial > 100000) {
+                return null;
+            }
+
+            return (new \DateTimeImmutable('1899-12-30'))->modify("+{$serial} days")->format('Y-m-d');
         }
 
         $timestamp = strtotime($text);

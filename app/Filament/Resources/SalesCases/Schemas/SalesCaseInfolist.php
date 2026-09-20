@@ -40,7 +40,7 @@ class SalesCaseInfolist
                     ->schema([
                         TextEntry::make('branch.name')->label('Cabang'),
                         TextEntry::make('project.name')->label('Proyek'),
-                        TextEntry::make('unit.unit_code')->label('Unit / Kavling'),
+                        TextEntry::make('unit.unit_code')->label('Unit / Kavling')->placeholder('Waiting List / Belum Ada Kavling'),
                     ]),
                 Section::make('Transaksi')
                     ->columns(3)
@@ -102,11 +102,11 @@ class SalesCaseInfolist
                                 : sprintf(
                                     '%s — unit %s',
                                     $record->previousCase?->consumer->name ?? '-',
-                                    $record->previousCase?->unit->unit_code ?? '-',
+                                    $record->previousCase?->unit?->unit_code ?? '-',
                                 )),
                         TextEntry::make('successor_case')->label('Pindah Kavling ke')
                             ->visible(fn (SalesCase $record): bool => $record->successorCase()->exists())
-                            ->state(fn (SalesCase $record): ?string => $record->successorCase === null ? null : $record->successorCase->unit->unit_code)
+                            ->state(fn (SalesCase $record): ?string => $record->successorCase?->unit?->unit_code)
                             ->url(fn (SalesCase $record): ?string => $record->successorCase === null
                                 ? null
                                 : SalesCaseResource::getUrl('view', ['record' => $record->successorCase])),

@@ -16,6 +16,7 @@ use App\Models\Branch;
 use App\Models\Consumer;
 use App\Models\DeveloperPpjb;
 use App\Models\DocumentSubmission;
+use App\Models\Project;
 use App\Models\Psjb;
 use App\Models\SalesCase;
 use App\Models\Unit;
@@ -119,15 +120,21 @@ final class MagelangImporter
             }
 
             $unit = $row->unitCode !== null ? ($units[$row->unitCode] ?? null) : null;
+            $project = $unit?->project ?? $this->resolveProject($row);
 
-            if ($unit === null) {
-                $count('unknown_unit');
-                $report['failed'][] = ['source_id' => $row->sourceId, 'error' => "Unit '{$row->unitCode}' tidak ditemukan di cabang; perbaiki pemetaan unit lalu impor ulang baris ini."];
+            if ($project === null) {
+                $count('unknown_project');
+                $report['failed'][] = ['source_id' => $row->sourceId, 'error' => "Project '{$row->projectCode}' tidak ditemukan di cabang; perbaiki pemetaan project lalu impor ulang baris ini."];
 
                 continue;
             }
 
+            if ($row->unitCode !== null && $unit === null) {
+                $count('unknown_unit');
+            }
+
             if ($row->status === SalesCaseStatus::Active
+                && $unit !== null
                 && ($claimedUnitIds[$unit->id] ?? false || $this->unitHasActiveCase($unit))) {
                 $count('unit_conflict');
                 $report['failed'][] = ['source_id' => $row->sourceId, 'error' => "Unit '{$row->unitCode}' sudah ditempati sales case ACTIVE lain; selesaikan konflik unit lalu impor ulang baris ini."];
@@ -136,7 +143,7 @@ final class MagelangImporter
             }
 
             try {
-                [$case, $finalAnomalies] = DB::transaction(fn (): array => $this->importRow($row, $unit, $index));
+                [$case, $finalAnomalies] = DB::transaction(fn (): array => $this->importRow($row, $unit, $project, $index));
             } catch (UniqueConstraintViolationException $e) {
                 $existingCase = SalesCase::query()
                     ->where('import_source', self::IMPORT_SOURCE)
@@ -159,7 +166,7 @@ final class MagelangImporter
                 $count($code);
             }
 
-            if ($row->status === SalesCaseStatus::Active) {
+            if ($row->status === SalesCaseStatus::Active && $unit !== null) {
                 $claimedUnitIds[$unit->id] = true;
             }
 
@@ -174,7 +181,7 @@ final class MagelangImporter
     /**
      * @return array{0: SalesCase, 1: list<string>} the case and its final anomalies
      */
-    private function importRow(MagelangSalesCaseRow $row, Unit $unit, int $index): array
+    private function importRow(MagelangSalesCaseRow $row, ?Unit $unit, Project $project, int $index): array
     {
         $profileAnomalies = [];
         $consumer = $this->resolveConsumer($row, $index, $profileAnomalies);
@@ -182,6 +189,10 @@ final class MagelangImporter
         $bank = $row->bankName !== null ? $this->resolveBank($row) : null;
 
         $rowAnomalies = array_merge($row->anomalies, $profileAnomalies);
+
+        if ($unit === null) {
+            $rowAnomalies[] = $row->unitCode === null ? 'waiting_list_no_unit' : 'unknown_unit';
+        }
 
         if ($row->bankName !== null && $bank === null) {
             $rowAnomalies[] = 'bank_unmapped';
@@ -192,8 +203,8 @@ final class MagelangImporter
         /** @var SalesCase $case */
         $case = SalesCase::create([
             'consumer_id' => $consumer->id,
-            'unit_id' => $unit->id,
-            'project_id' => $unit->project_id,
+            'unit_id' => $unit?->id,
+            'project_id' => $project->id,
             'branch_id' => $this->branch->id,
             'financing_type' => $row->financingType,
             'booking_date' => $row->bookingDate,
@@ -350,6 +361,18 @@ final class MagelangImporter
         ]);
     }
 
+    private function resolveProject(MagelangSalesCaseRow $row): ?Project
+    {
+        if ($row->projectCode === null) {
+            return null;
+        }
+
+        return Project::query()
+            ->where('branch_id', $this->branch->id)
+            ->where('code', $row->projectCode)
+            ->first();
+    }
+
     private function resolveBank(MagelangSalesCaseRow $row): ?Bank
     {
         if ($row->bankName === null) {
@@ -365,6 +388,7 @@ final class MagelangImporter
     private function unitsByCode(): array
     {
         $units = Unit::query()
+            ->with('project')
             ->whereHas('project', fn ($query) => $query->where('branch_id', $this->branch->id))
             ->get();
 

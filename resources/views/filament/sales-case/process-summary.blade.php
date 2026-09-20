@@ -14,7 +14,7 @@
                 Completed
             </span>
             <div class="text-sm">
-                <span class="font-semibold text-gray-950 dark:text-white">{{ $case->unit->unit_code }}</span>
+                <span class="font-semibold text-gray-950 dark:text-white">{{ $case->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling' }}</span>
                 <span class="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
                 <span class="text-gray-600 dark:text-gray-300">{{ $case->financing_type->getLabel() }}</span>
                 <span class="mx-1.5 text-gray-300 dark:text-gray-600">·</span>
@@ -57,7 +57,7 @@
         <div class="grid gap-4 px-5 py-4 sm:grid-cols-3">
             <div>
                 <p class="text-xs font-medium text-gray-400 dark:text-gray-500">Unit / Kavling</p>
-                <p class="mt-0.5 text-base font-semibold text-gray-950 dark:text-white">{{ $case->unit->unit_code }}</p>
+                <p class="mt-0.5 text-base font-semibold text-gray-950 dark:text-white">{{ $case->unit?->unit_code ?? 'Waiting List / Belum Ada Kavling' }}</p>
             </div>
             @if ($isCash)
                 @php($cashPemberkasan = $case->documentSubmissions()->where('type', 'CASH_INTERNAL')->first())
