@@ -17,7 +17,11 @@ interface RepairRule
     /** @return list<RepairIssue> */
     public function scan(Branch $branch): array;
 
+    public function findTarget(string $targetId): Model;
+
     public function lockTarget(string $targetId): Model;
+
+    public function isIssuePresent(Model $target): bool;
 
     public function detect(Model $target): RepairIssue;
 
@@ -31,6 +35,9 @@ interface RepairRule
     public function fingerprintPayload(Model $target, RepairIssue $issue): array;
 
     public function apply(Model $target): string;
+
+    /** @return array<string, mixed> */
+    public function after(Model $target): array;
 
     /** @param array<string, mixed> $before */
     public function verify(Model $target, SalesCase $case, array $before): void;

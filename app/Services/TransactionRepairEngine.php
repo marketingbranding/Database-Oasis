@@ -47,7 +47,7 @@ final class TransactionRepairEngine
     public function plan(RepairIssue $issue): RepairPlan
     {
         $rule = $this->ruleForIssue($issue);
-        $target = $rule->lockTarget($issue->targetId);
+        $target = $rule->findTarget($issue->targetId);
         $current = $rule->detect($target);
 
         return new RepairPlan($current, $rule->actionCode(), $rule->before($target), $rule->proposed($target), $this->fingerprint($rule, $target, $current));
@@ -83,7 +83,7 @@ final class TransactionRepairEngine
             $this->stages->reconcile($case);
             $this->units->reconcile($case->unit_id);
             $rule->verify($target, $case, $before);
-            $after = array_merge($before, [$current->issueCode === 'sp3k_system_code_missing' ? 'sp3k_code' : 'ppjb_code' => $code]);
+            $after = $rule->after($target);
             $audit = RepairAction::create(['branch_id' => $case->branch_id, 'sales_case_id' => $case->id, 'issue_code' => $current->issueCode, 'target_type' => $current->targetType, 'target_id' => $current->targetId, 'action_code' => $rule->actionCode(), 'repairability' => $current->repairability, 'plan_fingerprint' => $fingerprint, 'before_payload' => $before, 'after_payload' => $after, 'evidence_payload' => $current->evidence, 'performed_by' => $user->id]);
 
             return new RepairResult($plan, $audit->id, $before, $after, $stageBefore, $case->refresh()->current_stage->value, $unitBefore, $case->unit?->refresh()->status?->value, true);

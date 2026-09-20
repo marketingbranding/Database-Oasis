@@ -34,18 +34,30 @@ final class MissingPpjbSystemCodeRule implements RepairRule
         return DeveloperPpjb::query()->whereHas('salesCase', fn ($q) => $q->where('branch_id', $branch->id))->whereNull('ppjb_code')->orderBy('id')->get()->map(fn (DeveloperPpjb $ppjb): RepairIssue => $this->detect($ppjb))->all();
     }
 
+    public function findTarget(string $targetId): Model
+    {
+        return DeveloperPpjb::query()->findOrFail($targetId);
+    }
+
     public function lockTarget(string $targetId): Model
     {
         return DeveloperPpjb::query()->whereKey($targetId)->lockForUpdate()->firstOrFail();
     }
 
+    public function isIssuePresent(Model $target): bool
+    {
+        return $target instanceof DeveloperPpjb && $target->ppjb_code === null;
+    }
+
     public function detect(Model $target): RepairIssue
     {
-        if (! $target instanceof DeveloperPpjb || $target->ppjb_code !== null) {
+        if (! $this->isIssuePresent($target)) {
             throw ValidationException::withMessages(['issue' => 'PPJB issue no longer exists.']);
         }
 
-        return new RepairIssue($this->issueCode(), $target->sales_case_id, $target->salesCase->branch_id, $this->targetType(), $target->id, Repairability::AutoFixable, 'Canonical PPJB code is missing.', ['document_date' => $target->document_date->toDateString(), 'status' => $target->status->value, 'ppjb_code' => null]);
+        $ppjb = $this->target($target);
+
+        return new RepairIssue($this->issueCode(), $ppjb->sales_case_id, $ppjb->salesCase->branch_id, $this->targetType(), $ppjb->id, Repairability::AutoFixable, 'Canonical PPJB code is missing.', ['document_date' => $ppjb->document_date->toDateString(), 'status' => $ppjb->status->value, 'ppjb_code' => null]);
     }
 
     public function before(Model $target): array
@@ -72,12 +84,17 @@ final class MissingPpjbSystemCodeRule implements RepairRule
         return $this->numbers->ensurePpjbCode($this->target($target));
     }
 
+    public function after(Model $target): array
+    {
+        return $this->before($this->target($target)->refresh());
+    }
+
     /** @param array<string, mixed> $before */
     public function verify(Model $target, SalesCase $case, array $before): void
     {
         $ppjb = $this->target($target);
         $ppjb->refresh();
-        if ($ppjb->sales_case_id !== $case->id || $ppjb->ppjb_code === null || $ppjb->document_number !== $before['document_number'] || $ppjb->document_date->toDateString() !== $before['document_date'] || $ppjb->status->value !== $before['status']) {
+        if ($ppjb->sales_case_id !== $case->id || $ppjb->ppjb_code === null || $ppjb->document_number !== $before['document_number'] || $ppjb->document_date->toDateString() !== $before['document_date'] || $ppjb->status->value !== $before['status'] || $ppjb->bank_process_id !== $before['bank_process_id'] || $this->isIssuePresent($ppjb)) {
             throw ValidationException::withMessages(['repair' => 'PPJB repair verification failed.']);
         }
     }
