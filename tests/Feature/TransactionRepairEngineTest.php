@@ -373,7 +373,7 @@ class TransactionRepairEngineTest extends TestCase
             $case = $this->caseFor($branch);
             $process = $this->sp3kFor($case);
             $user = $this->userWithRole($role, $userBranch);
-            $plan = $engine->plan($engine->scanBranch($branch)[0]);
+            $plan = $engine->plan($this->issueFor($engine, $branch, 'sp3k_system_code_missing'));
             $exception = null;
 
             try {
@@ -428,7 +428,7 @@ class TransactionRepairEngineTest extends TestCase
         $target = $this->sp3kFor($caseB);
         $user = $this->userWithRole(UserRole::HqAdmin);
         $engine = app(TransactionRepairEngine::class);
-        $realIssue = $engine->scanBranch($branch)[0];
+        $realIssue = $this->issueFor($engine, $branch, 'sp3k_system_code_missing');
         $forgedIssue = new RepairIssue($realIssue->issueCode, $caseA->id, $caseA->branch_id, BankProcess::class, $target->id, Repairability::AutoFixable, 'forged', $realIssue->evidence);
         $plan = new RepairPlan($forgedIssue, 'GENERATE_SP3K_SYSTEM_CODE', ['sp3k_code' => null], ['sp3k_code' => 'SYSTEM GENERATED'], hash('sha256', 'forged'));
         $exception = null;

@@ -7,6 +7,7 @@ use App\Models\RepairAction;
 use App\Models\SalesCase;
 use App\Models\User;
 use App\Repairability;
+use App\Services\Repair\BankProcessWithoutSubmissionRule;
 use App\Services\Repair\MissingPpjbSystemCodeRule;
 use App\Services\Repair\MissingSp3kSystemCodeRule;
 use App\Services\Repair\RepairIssue;
@@ -26,10 +27,11 @@ final class TransactionRepairEngine
     public function __construct(
         MissingSp3kSystemCodeRule $sp3k,
         MissingPpjbSystemCodeRule $ppjb,
+        BankProcessWithoutSubmissionRule $orphanBankProcess,
         private SalesCaseStageResolver $stages,
         private UnitStatusResolver $units,
     ) {
-        $this->rules = [$sp3k, $ppjb];
+        $this->rules = [$orphanBankProcess, $sp3k, $ppjb];
     }
 
     /** @return list<RepairIssue> */
