@@ -149,10 +149,29 @@ class R2B1BankProcessLineageTest extends TestCase
         $engine = app(TransactionRepairEngine::class);
 
         $responseIssue = $this->orphanIssue($engine, $branch, $missingResponse->id);
+        $responsePlan = $this->enginePlan($engine, $responseIssue);
+        $stageBefore = $case->current_stage;
+        $unitStatusBefore = $case->unit->status;
+        $submissionCountBefore = DocumentSubmission::query()->count();
+        $exception = null;
+
+        try {
+            $engine->apply(User::factory()->create(), $responsePlan);
+        } catch (ValidationException $exception) {
+        }
 
         $this->assertSame(BankProcessWithoutSubmissionRule::TemporalUncertain, $responseIssue->diagnosis);
+        $this->assertSame(Repairability::ManualDecisionRequired, $responseIssue->repairability);
+        $this->assertSame(null, $responsePlan->proposed['document_submission_id']);
         $this->assertSame('UNCERTAIN', $responseIssue->evidence['candidates'][0]['temporal_relationship']);
         $this->assertSame($missingResponseSubmission->id, $responseIssue->evidence['candidates'][0]['id']);
+        $this->assertInstanceOf(ValidationException::class, $exception);
+        $this->assertNull($missingResponse->refresh()->document_submission_id);
+        $this->assertSame(0, RepairAction::query()->count());
+        $this->assertSame(0, BusinessNumberSequence::query()->count());
+        $this->assertSame($submissionCountBefore, DocumentSubmission::query()->count());
+        $this->assertSame($stageBefore, $case->refresh()->current_stage);
+        $this->assertSame($unitStatusBefore, $case->unit->refresh()->status);
 
         $missingSubmission = $this->submissionFor($case, $bank, ['submission_date' => null, 'is_legacy_import' => true, 'legacy_date_missing' => true, 'sequence' => 2]);
         $missingSubmissionProcess = $this->processFor($case, $bank, ['response_date' => '2026-09-20']);
