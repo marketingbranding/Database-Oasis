@@ -14,6 +14,7 @@ use App\Services\Repair\RepairIssue;
 use App\Services\Repair\RepairPlan;
 use App\Services\Repair\RepairResult;
 use App\Services\Repair\RepairRule;
+use App\Services\Repair\ReviewedRepairRule;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,58 @@ final class TransactionRepairEngine
         $current = $rule->detect($target);
 
         return new RepairPlan($current, $rule->actionCode(), $rule->before($target), $rule->proposed($target), $this->fingerprint($rule, $target, $current));
+    }
+
+    public function applyReviewed(User $user, RepairPlan $plan, string $selectedDocumentSubmissionId): RepairResult
+    {
+        return DB::transaction(function () use ($user, $plan, $selectedDocumentSubmissionId): RepairResult {
+            $rule = $this->ruleForIssue($plan->issue);
+            if (! $rule instanceof ReviewedRepairRule || ! $rule->canReview($plan->issue)) {
+                throw ValidationException::withMessages(['repairability' => 'Only EXACT_SINGLE_CANDIDATE REVIEW_REQUIRED repairs can be reviewed.']);
+            }
+            if ($plan->actionCode !== $rule->actionCode()) {
+                throw ValidationException::withMessages(['action_code' => 'Repair action does not match registered rule.']);
+            }
+            $case = SalesCase::query()->whereKey($plan->issue->salesCaseId)->lockForUpdate()->firstOrFail();
+            if (! $user->can('update', $case)) {
+                throw new AuthorizationException;
+            }
+            $target = $rule->lockTarget($plan->issue->targetId);
+            if ($target->getAttribute('sales_case_id') !== $case->id) {
+                throw ValidationException::withMessages(['target' => 'Repair target does not belong to SalesCase.']);
+            }
+            $snapshot = $rule->reviewedSnapshot($target);
+            if (! hash_equals($plan->fingerprint, $snapshot->fingerprint)) {
+                throw ValidationException::withMessages(['plan' => 'Repair plan is stale. Preview again.']);
+            }
+            if (($plan->proposed['document_submission_id'] ?? null) !== $selectedDocumentSubmissionId
+                || ($snapshot->proposed['document_submission_id'] ?? null) !== $selectedDocumentSubmissionId
+                || $snapshot->candidate?->id !== $selectedDocumentSubmissionId) {
+                throw ValidationException::withMessages(['document_submission_id' => 'Selected DocumentSubmission does not match reviewed candidate.']);
+            }
+            $before = $snapshot->before;
+            $stageBefore = $case->current_stage->value;
+            $unitBefore = $case->unit?->status?->value;
+            $rule->applyReviewed($target, $snapshot->candidate);
+            $rule->verifyReviewed($target, $snapshot->candidate, $before);
+            $after = $rule->after($target);
+            $audit = RepairAction::create([
+                'branch_id' => $case->branch_id,
+                'sales_case_id' => $case->id,
+                'issue_code' => $snapshot->issue->issueCode,
+                'target_type' => $snapshot->issue->targetType,
+                'target_id' => $snapshot->issue->targetId,
+                'action_code' => $rule->actionCode(),
+                'repairability' => $snapshot->issue->repairability,
+                'plan_fingerprint' => $plan->fingerprint,
+                'before_payload' => $before,
+                'after_payload' => $after,
+                'evidence_payload' => $snapshot->issue->evidence,
+                'performed_by' => $user->id,
+            ]);
+
+            return new RepairResult($plan, $audit->id, $before, $after, $stageBefore, $stageBefore, $unitBefore, $unitBefore, true);
+        });
     }
 
     public function apply(User $user, RepairPlan $plan): RepairResult
